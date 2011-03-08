@@ -30,6 +30,8 @@ class Codec : public QObject
 {
     Q_OBJECT
 public:
+    enum Status { Ok, NeedInput, Error };
+
     Codec(const QString& codec, QObject* parent = 0);
 
     QString codec() const;
@@ -37,12 +39,11 @@ public:
     virtual bool init(const QAudioFormat& format) = 0;
 
 signals:
-    void needsInput();
-    void output(const QByteArray& data);
+    void output(QByteArray* data);
 
 public slots:
     virtual void feed(const QByteArray& data, bool end = false) = 0;
-    virtual bool decode() = 0;
+    virtual Status decode() = 0;
 
 private:
     QString m_codec;

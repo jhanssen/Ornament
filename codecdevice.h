@@ -2,7 +2,24 @@
 #define CODECDEVICE_H
 
 #include <QIODevice>
+#include <QLinkedList>
 #include "codecs/codecs.h"
+
+class Buffer
+{
+public:
+    Buffer();
+
+    void add(QByteArray* sub);
+
+    bool isEmpty() const;
+    int size() const;
+    QByteArray read(int size);
+
+private:
+    QLinkedList<QByteArray*> m_subs;
+    int m_size;
+};
 
 class CodecDevice : public QIODevice
 {
@@ -21,17 +38,16 @@ protected:
     qint64 writeData(const char *data, qint64 len);
 
 private slots:
-    void codecOutput(const QByteArray& output);
-    void codecNeedsInput();
+    void codecOutput(QByteArray* output);
 
 private:
-    void fillBuffer() const;
+    bool fillBuffer();
 
 private:
     QIODevice* m_input;
     Codec* m_codec;
 
-    QByteArray m_decoded;
+    Buffer m_decoded;
 };
 
 #endif // CODECDEVICE_H

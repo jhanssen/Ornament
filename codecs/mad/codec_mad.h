@@ -25,7 +25,7 @@ public:
 
 public slots:
     void feed(const QByteArray &data, bool end = false);
-    bool decode();
+    Status decode();
 
 private:
     QAudioFormat m_format;

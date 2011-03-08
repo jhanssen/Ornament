@@ -118,22 +118,22 @@ void CodecMad::feed(const QByteArray& data, bool end)
     }
 }
 
-bool CodecMad::decode()
+CodecMad::Status CodecMad::decode()
 {
     if (mad_frame_decode(&m_frame, &m_stream)) {
         if (MAD_RECOVERABLE(m_stream.error)) {
             // good stuff, but we need to return
             qDebug() << "recoverable foo" << m_stream.error;
-            return true;
+            return Ok;
         } else {
-            if (m_stream.error == MAD_ERROR_BUFLEN) {
-                emit needsInput();
+            if (m_stream.error == MAD_ERROR_BUFLEN
+                || m_stream.error == MAD_ERROR_BUFPTR) {
                 // this is fine as well
-                return false;
+                return NeedInput;
             } else {
                 // ### ow, set some error status here!
-                qDebug() << "error foo";
-                return false;
+                qDebug() << "error foo" << m_stream.error;
+                return Error;
             }
         }
     }
@@ -142,8 +142,8 @@ bool CodecMad::decode()
 
     // ### need to take m_format into account here
 
-    QByteArray out(OUTPUT_BUFFER_SIZE, '\0');
-    char* outptr = out.data();
+    QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+    char* outptr = out->data();
     char* outend = outptr + OUTPUT_BUFFER_SIZE;
     int outsize = 0;
 
@@ -165,15 +165,19 @@ bool CodecMad::decode()
 
         if (outptr == outend) {
             emit output(out);
+
+            out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+            outptr = out->data();
+            outend = outptr + OUTPUT_BUFFER_SIZE;
             outsize = 0;
-            outptr = out.data();
         }
     }
 
     if (outsize > 0) {
-        //out.truncate(outsize);
-        emit output(QByteArray(out.constData(), outsize));
-    }
+        out->truncate(outsize);
+        emit output(out);
+    } else
+        delete out;
 
-    return true;
+    return Ok;
 }
