@@ -86,12 +86,15 @@ bool CodecDevice::fillBuffer()
             qDebug() << "feeding" << input.size();
             m_codec->feed(input, m_input->atEnd());
             qDebug() << "feed complete, decoding";
-
-            do {
-                status = m_codec->decode();
-                qDebug() << "decode status" << status;
-            } while (status == Codec::Ok);
+        } else if (status == Codec::Error) {
+            // ### ouch
+            break;
         }
+
+        do {
+            status = m_codec->decode();
+            qDebug() << "decode status" << status;
+        } while (status == Codec::Ok);
     } while (m_decoded.size() < CODEC_BUFFER_MAX);
 
     return true;
