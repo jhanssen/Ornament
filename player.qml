@@ -7,7 +7,7 @@ Rectangle {
     SystemPalette { id: activePalette }
 
     width: 100
-    height: 62
+    height: 120
 
     AudioDevice {
         id: audioDevice
@@ -23,7 +23,7 @@ Rectangle {
 
     ListView {
         id: list
-        clip: false
+        clip: true
         anchors.fill: parent
         model: musicModel
         highlight: Rectangle { color: "lightsteelblue"; radius : 2 }
