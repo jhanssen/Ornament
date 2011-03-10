@@ -65,7 +65,7 @@ Rectangle {
                             else if (musicModel.currentAlbum === 0)
                                 musicModel.currentAlbum = musicid
                             else {
-                                var filename = musicModel.filename(musicid);
+                                var filename = musicModel.filename(musicid)
                                 audioDevice.device = audioDevice.devices[0]
                                 audioPlayer.audioDevice = audioDevice
                                 audioPlayer.filename = filename
