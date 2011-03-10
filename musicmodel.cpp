@@ -29,9 +29,9 @@ int MusicModel::currentArtist() const
 
 void MusicModel::setCurrentArtist(int artist)
 {
-    qDebug() << "setting artist to" << artist;
     m_artist = artist;
     m_album = 0;
+
     if (m_artist == 0)
         toggleNormal();
     else
@@ -48,9 +48,8 @@ void MusicModel::setCurrentAlbum(int album)
     if (m_artist == 0)
         return;
 
-    qDebug() << "setting album to" << album << "for artist" << m_artist;
-
     m_album = album;
+
     if (m_album == 0)
         toggleArtist();
     else
@@ -76,8 +75,10 @@ QVariant MusicModel::data(const QModelIndex &index, int role) const
 {
     if (role < Qt::UserRole)
         return QSqlQueryModel::data(index, role);
+
     int col = role - Qt::UserRole - 1;
     QModelIndex idx = this->index(index.row(), col);
+
     return QSqlQueryModel::data(idx, Qt::DisplayRole);
 }
 
@@ -102,10 +103,15 @@ void MusicModel::refresh(Mode mode)
 
 QString MusicModel::filename(int track)
 {
+    if (m_artist == 0 || m_album == 0)
+        return QString();
+
     QString stmt = QLatin1String("select tracks.filename from artists, albums, tracks where artists.id = '") + QString::number(m_artist) + QLatin1String("' and albums.id = '") + QString::number(m_album) + QLatin1String("' and tracks.id = '") + QString::number(track) + QLatin1String("' and albums.artistid = artists.id and tracks.albumid = albums.id");
+
     QSqlQuery query(m_db);
     if (query.exec(stmt) && query.next()) {
         return query.value(0).toString();
     }
+
     return QString();
 }
