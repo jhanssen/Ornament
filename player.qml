@@ -49,7 +49,17 @@ Rectangle {
 
                     MouseArea {
                         anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
                         onClicked: {
+                            if (mouse.button === Qt.RightButton) {
+                                if (musicModel.currentAlbum !== 0)
+                                    musicModel.currentAlbum = 0
+                                else if (musicModel.currentArtist !== 0)
+                                    musicModel.currentArtist = 0
+                                return;
+                            }
+
                             if (musicModel.currentArtist === 0)
                                 musicModel.currentArtist = musicid
                             else if (musicModel.currentAlbum === 0)
