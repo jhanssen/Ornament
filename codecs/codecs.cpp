@@ -26,6 +26,9 @@ void Codecs::addCodec(const QString &codec, CodecFactory *factory)
 
 void Codecs::init()
 {
+    if (!s_factories.isEmpty())
+        return;
+
     addCodec(QLatin1String("audio/mp3"), new CodecFactoryMad);
 }
 

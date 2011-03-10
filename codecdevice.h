@@ -26,6 +26,7 @@ class CodecDevice : public QIODevice
     Q_OBJECT
 public:
     CodecDevice(QObject *parent = 0);
+    ~CodecDevice();
 
     bool isSequential() const;
     qint64 bytesAvailable() const;

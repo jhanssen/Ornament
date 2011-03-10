@@ -3,7 +3,7 @@
 #include <QDebug>
 
 #define CODEC_BUFFER_MIN (16384 * 4)
-#define CODEC_BUFFER_MAX (16384 * 10)
+#define CODEC_BUFFER_MAX (16384 * 50)
 #define CODEC_INPUT_READ 8192
 
 Buffer::Buffer()
@@ -50,8 +50,14 @@ QByteArray Buffer::read(int size)
 }
 
 CodecDevice::CodecDevice(QObject *parent) :
-    QIODevice(parent)
+    QIODevice(parent), m_input(0), m_codec(0)
 {
+}
+
+CodecDevice::~CodecDevice()
+{
+    delete m_input;
+    delete m_codec;
 }
 
 bool CodecDevice::isSequential() const

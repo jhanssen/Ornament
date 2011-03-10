@@ -12,11 +12,15 @@ QT += multimedia
 # Input
 HEADERS += codecs/codecs.h \
     codecs/mad/codec_mad.h \
-    codecdevice.h
+    codecdevice.h \
+    audiodevice.h \
+    audioplayer.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
     codecs/mad/codec_mad.cpp \
-    codecdevice.cpp
+    codecdevice.cpp \
+    audiodevice.cpp \
+    audioplayer.cpp
 
 LIBS += codecs/mad/lib/libmad.a

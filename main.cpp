@@ -1,48 +1,26 @@
 #include <QtGui>
-#include <QtMultimedia>
-#include "codecs/codecs.h"
-#include "codecdevice.h"
+#include "audiodevice.h"
+#include "audioplayer.h"
 
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    Codecs::init();
+    AudioDevice device;
 
-    Codec* codec = Codecs::create(QLatin1String("audio/mp3"));
-    if (!codec)
+    QStringList deviceList = device.devices();
+    if (deviceList.isEmpty())
         return 1;
 
-    QAudioOutput* output = 0;
-    QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
-    foreach(QAudioDeviceInfo device, devices) {
-        qDebug() << device.deviceName();
-        if (output == 0)
-            output = new QAudioOutput(device, device.preferredFormat());
-    }
+    device.setDevice(deviceList.at(0));
 
-    if (!output) {
-        qDebug() << "no output device";
-        return 1;
-    }
 
-    if (output->error() != QAudio::NoError) {
-        qDebug() << "error" << output->error();
-        return 1;
-    }
+    AudioPlayer player;
 
-    codec->init(output->format());
+    player.setAudioDevice(&device);
+    player.setFilename("/Users/jhanssen/mp3/Bonobo/Animal Magic/02 - Sleepy Seven.mp3");
 
-    QFile inputfile("/Users/jhanssen/mp3/Bonobo/Animal Magic/02 - Sleepy Seven.mp3");
-    if (!inputfile.open(QFile::ReadOnly))
-        return 2;
-
-    CodecDevice* cd = new CodecDevice;
-    cd->setInputDevice(&inputfile);
-    cd->setCodec(codec);
-    cd->open(QIODevice::ReadOnly);
-
-    output->start(cd);
+    player.play();
 
     return app.exec();
 }
