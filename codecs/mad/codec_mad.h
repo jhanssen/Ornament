@@ -2,7 +2,7 @@
 #define PLAYERCODEC_MAD_H
 
 #include "codecs/codecs.h"
-#include "codecs/mad/lib/include/mad.h"
+#include "codecs/mad/mad/include/mad.h"
 
 class CodecFactoryMad : public CodecFactory
 {

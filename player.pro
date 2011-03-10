@@ -25,7 +25,7 @@ SOURCES += main.cpp \
     audioplayer.cpp \
     musicmodel.cpp
 
-LIBS += codecs/mad/lib/libmad.a
+LIBS += codecs/mad/mad/libmad.a
 
 OTHER_FILES += \
     player.qml
