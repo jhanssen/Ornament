@@ -7,10 +7,10 @@
 class AudioDevice : public QObject
 {
     Q_OBJECT
-public:
+
     Q_PROPERTY(QStringList devices READ devices)
     Q_PROPERTY(QString device READ device WRITE setDevice)
-
+public:
     AudioDevice(QObject *parent = 0);
 
     QStringList devices() const;

@@ -29,6 +29,31 @@ void AudioPlayer::setAudioDevice(AudioDevice *device)
 {
     delete m_audio;
     m_audio = device;
+
+    if (m_audio && m_audio->output())
+        connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
+                this, SLOT(outputStateChanged(QAudio::State)));
+}
+
+void AudioPlayer::outputStateChanged(QAudio::State state)
+{
+    State oldstate = m_state;
+
+    switch (state) {
+    case QAudio::ActiveState:
+    case QAudio::IdleState:
+        m_state = Playing;
+        break;
+    case QAudio::SuspendedState:
+        m_state = Paused;
+        break;
+    case QAudio::StoppedState:
+        m_state = Stopped;
+        break;
+    }
+
+    if (m_state != oldstate)
+        emit stateChanged(m_state);
 }
 
 void AudioPlayer::play()
@@ -60,18 +85,27 @@ void AudioPlayer::play()
                 return;
             }
         }
-    }
 
-    m_state = Playing;
-    m_audio->output()->start(m_codec);
+        m_audio->output()->start(m_codec);
+    } else if (m_state == Paused) {
+        m_audio->output()->resume();
+    }
 }
 
 void AudioPlayer::pause()
 {
+    if (m_state != Playing || !m_audio || !m_audio->output())
+        return;
+
+    m_audio->output()->suspend();
 }
 
 void AudioPlayer::stop()
 {
+    if (m_state != Playing || !m_audio || !m_audio->output())
+        return;
+
+    m_audio->output()->stop();
 }
 
 QString AudioPlayer::mimeType(const QString &filename) const
