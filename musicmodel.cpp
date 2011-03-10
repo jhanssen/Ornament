@@ -8,7 +8,7 @@
 // create table tracks (id integer primary key autoincrement, album text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id));
 
 MusicModel::MusicModel(QObject *parent) :
-    QSqlQueryModel(parent)
+    QSqlQueryModel(parent), m_artist(0), m_album(0)
 {
     m_db = QSqlDatabase::addDatabase(QLatin1String("QSQLITE"));
     m_db.setDatabaseName("player.db");
