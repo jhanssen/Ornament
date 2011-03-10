@@ -50,12 +50,12 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         onClicked: {
-                            if (musicModel.currentArtist.length === 0)
-                                musicModel.currentArtist = value.text
-                            else if (musicModel.currentAlbum.length === 0)
-                                musicModel.currentAlbum = value.text
+                            if (musicModel.currentArtist === 0)
+                                musicModel.currentArtist = musicid
+                            else if (musicModel.currentAlbum === 0)
+                                musicModel.currentAlbum = musicid
                             else {
-                                var filename = musicModel.filename(value.text);
+                                var filename = musicModel.filename(musicid);
                                 audioDevice.device = audioDevice.devices[0]
                                 audioPlayer.audioDevice = audioDevice
                                 audioPlayer.filename = filename
