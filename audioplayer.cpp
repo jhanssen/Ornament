@@ -82,7 +82,7 @@ void AudioPlayer::play()
         Tag* tag = codec->tag(m_filename);
         if (tag) {
             qDebug() << tag->keys();
-            qDebug() << tag->data("TIT2").toString();
+            qDebug() << tag->data("title").toString();
             delete tag;
         }
 

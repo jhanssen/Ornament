@@ -16,7 +16,7 @@ public:
     QVariant data(const QString &key) const;
 
 private:
-    QHash<QString, QList<QVariant> > m_data;
+    QHash<QString, QVariant> m_data;
 };
 
 class CodecFactoryMad : public CodecFactory
