@@ -35,6 +35,7 @@
  ****************************************************************************/
 
 #include "codec_mad.h"
+#include "codecs/mad/id3lib/include/id3/tag.h"
 #include <QDebug>
 
 #define INPUT_BUFFER_SIZE (8192 * 5)
@@ -180,4 +181,60 @@ CodecMad::Status CodecMad::decode()
         delete out;
 
     return Ok;
+}
+
+Tag* CodecMad::tag(const QString &filename) const
+{
+    return new TagMad(filename);
+}
+
+TagMad::TagMad(const QString &filename)
+    : Tag(filename)
+{
+    ID3_Tag tag(filename.toLocal8Bit().constData());
+
+    ID3_Tag::Iterator* iter = tag.CreateIterator();
+    ID3_Frame* myFrame = NULL;
+    while (NULL != (myFrame = iter->GetNext())) {
+        QString key = QString::fromUtf8(myFrame->GetTextID());
+        QList<QVariant> vals;
+
+        ID3_Frame::Iterator* fiter = myFrame->CreateIterator();
+        ID3_Field* myField = NULL;
+        while (NULL != (myField = fiter->GetNext())) {
+            ID3_FieldType type = myField->GetType();
+            switch (type) {
+            case ID3FTY_INTEGER:
+                vals.append(QVariant(myField->Get()));
+                break;
+            case ID3FTY_TEXTSTRING:
+                vals.append(QVariant(QString::fromUtf16(myField->GetRawUnicodeText())));
+                break;
+            case ID3FTY_BINARY:
+                vals.append(QVariant(QByteArray(reinterpret_cast<const char*>(myField->GetRawBinary()),
+                                                myField->BinSize())));
+                break;
+            default:
+                break;
+            }
+        }
+        delete fiter;
+
+        if (!key.isEmpty() && !vals.isEmpty())
+            m_data[key] = vals;
+    }
+    delete iter;
+}
+
+QVariant TagMad::data(const QString &key) const
+{
+    if (!m_data.contains(key))
+        return QVariant();
+
+    return m_data.value(key).last();
+}
+
+QList<QString> TagMad::keys() const
+{
+    return m_data.keys();
 }

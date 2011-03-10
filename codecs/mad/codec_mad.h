@@ -4,6 +4,21 @@
 #include "codecs/codecs.h"
 #include "codecs/mad/mad/include/mad.h"
 
+#include <QHash>
+#include <QList>
+
+class TagMad : public Tag
+{
+public:
+    TagMad(const QString& filename);
+
+    QList<QString> keys() const;
+    QVariant data(const QString &key) const;
+
+private:
+    QHash<QString, QList<QVariant> > m_data;
+};
+
 class CodecFactoryMad : public CodecFactory
 {
 public:
@@ -22,6 +37,7 @@ public:
     CodecMad(const QString& codec, QObject* parent = 0);
 
     bool init(const QAudioFormat &format);
+    Tag* tag(const QString &filename) const;
 
 public slots:
     void feed(const QByteArray &data, bool end = false);

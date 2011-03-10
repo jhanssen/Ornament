@@ -79,6 +79,13 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
+        Tag* tag = codec->tag(m_filename);
+        if (tag) {
+            qDebug() << tag->keys();
+            qDebug() << tag->data("TIT2").toString();
+            delete tag;
+        }
+
         QFile* file = new QFile(m_filename);
         if (!file->open(QFile::ReadOnly)) {
             delete codec;

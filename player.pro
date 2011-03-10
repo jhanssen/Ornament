@@ -5,7 +5,7 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += .
+INCLUDEPATH += . codecs/mad/id3lib/include
 
 QT += multimedia declarative sql
 
@@ -25,7 +25,7 @@ SOURCES += main.cpp \
     audioplayer.cpp \
     musicmodel.cpp
 
-LIBS += codecs/mad/mad/libmad.a
+LIBS += codecs/mad/mad/libmad.a codecs/mad/id3lib/libid3.a -liconv -lz
 
 OTHER_FILES += \
     player.qml

@@ -7,6 +7,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QAudioFormat>
+#include <QVariant>
 
 class Codec;
 class CodecFactory;
@@ -26,6 +27,22 @@ private:
     static QHash<QString, CodecFactory*> s_factories;
 };
 
+class Tag
+{
+public:
+    Tag(const QString& filename);
+    virtual ~Tag();
+
+    QString filename() const;
+
+    virtual QList<QString> keys() const = 0;
+    virtual QVariant data(const QString& key) const = 0;
+    virtual void setData(const QString& key, const QVariant& data);
+
+private:
+    QString m_filename;
+};
+
 class Codec : public QObject
 {
     Q_OBJECT
@@ -35,6 +52,7 @@ public:
     Codec(const QString& codec, QObject* parent = 0);
 
     QString codec() const;
+    virtual Tag* tag(const QString& filename) const;
 
     virtual bool init(const QAudioFormat& format) = 0;
 

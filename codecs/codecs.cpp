@@ -3,6 +3,26 @@
 
 QHash<QString, CodecFactory*> Codecs::s_factories;
 
+Tag::Tag(const QString &filename)
+    : m_filename(filename)
+{
+}
+
+Tag::~Tag()
+{
+}
+
+QString Tag::filename() const
+{
+    return m_filename;
+}
+
+void Tag::setData(const QString &key, const QVariant &data)
+{
+    Q_UNUSED(key)
+    Q_UNUSED(data)
+}
+
 Codecs::Codecs()
 {
 }
@@ -40,6 +60,12 @@ Codec::Codec(const QString &codec, QObject *parent)
 QString Codec::codec() const
 {
     return m_codec;
+}
+
+Tag* Codec::tag(const QString &filename) const
+{
+    Q_UNUSED(filename)
+    return 0;
 }
 
 CodecFactory::CodecFactory()
