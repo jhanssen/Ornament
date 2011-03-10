@@ -63,27 +63,35 @@ void AudioPlayer::play()
 
     else if (m_state == Stopped) {
         delete m_codec;
+        m_codec = 0;
 
         QString mime = mimeType(m_filename);
-        if (!mime.isEmpty()) {
-            Codec* codec = Codecs::create(mime);
-            if (!codec)
-                return;
-            QFile* file = new QFile(m_filename);
-            if (!file->open(QFile::ReadOnly)) {
-                delete codec;
-                delete file;
-                return;
-            }
-            codec->init(m_audio->output()->format());
-            m_codec = new CodecDevice(this);
-            m_codec->setCodec(codec);
-            m_codec->setInputDevice(file);
-            if (!m_codec->open(CodecDevice::ReadOnly)) {
-                delete m_codec;
-                m_codec = 0;
-                return;
-            }
+        if (mime.isEmpty())
+            return;
+
+        Codec* codec = Codecs::create(mime);
+        if (!codec)
+            return;
+
+        QFile* file = new QFile(m_filename);
+        if (!file->open(QFile::ReadOnly)) {
+            delete codec;
+            delete file;
+
+            return;
+        }
+
+        codec->init(m_audio->output()->format());
+
+        m_codec = new CodecDevice(this);
+        m_codec->setCodec(codec);
+        m_codec->setInputDevice(file);
+
+        if (!m_codec->open(CodecDevice::ReadOnly)) {
+            delete m_codec;
+            m_codec = 0;
+
+            return;
         }
 
         m_audio->output()->start(m_codec);
