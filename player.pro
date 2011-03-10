@@ -7,20 +7,26 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
-QT += multimedia
+QT += multimedia declarative sql
 
 # Input
 HEADERS += codecs/codecs.h \
     codecs/mad/codec_mad.h \
     codecdevice.h \
     audiodevice.h \
-    audioplayer.h
+    audioplayer.h \
+    musicmodel.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
     codecs/mad/codec_mad.cpp \
     codecdevice.cpp \
     audiodevice.cpp \
-    audioplayer.cpp
+    audioplayer.cpp \
+    musicmodel.cpp
 
 LIBS += codecs/mad/lib/libmad.a
+
+OTHER_FILES += \
+    player.qml \
+    button.qml

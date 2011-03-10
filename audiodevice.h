@@ -8,7 +8,7 @@ class AudioDevice : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(QStringList devices READ devices)
+    Q_PROPERTY(QStringList devices READ devices NOTIFY devicesChanged)
     Q_PROPERTY(QString device READ device WRITE setDevice)
 public:
     AudioDevice(QObject *parent = 0);
@@ -19,6 +19,9 @@ public:
     bool setDevice(const QString& device);
 
     QAudioOutput* output() const;
+
+signals:
+    void devicesChanged();
 
 private:
     QString m_device;

@@ -27,6 +27,9 @@ AudioDevice* AudioPlayer::audioDevice() const
 
 void AudioPlayer::setAudioDevice(AudioDevice *device)
 {
+    if (m_audio == device)
+        return;
+
     delete m_audio;
     m_audio = device;
 
@@ -58,10 +61,13 @@ void AudioPlayer::outputStateChanged(QAudio::State state)
 
 void AudioPlayer::play()
 {
-    if (m_state == Playing || !m_audio || !m_audio->output())
+    if (!m_audio || !m_audio->output())
         return;
 
-    else if (m_state == Stopped) {
+    if (m_state == Playing)
+        stop();
+
+    if (m_state == Stopped || m_state == Playing) {
         delete m_codec;
         m_codec = 0;
 

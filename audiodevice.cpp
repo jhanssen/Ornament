@@ -30,6 +30,9 @@ QAudioOutput* AudioDevice::output() const
 
 bool AudioDevice::setDevice(const QString &device)
 {
+    if (m_device == device)
+        return true;
+
     QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
     foreach(QAudioDeviceInfo dev, devices) {
         if (device == dev.deviceName()) {
