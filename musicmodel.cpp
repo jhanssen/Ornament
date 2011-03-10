@@ -5,7 +5,7 @@
 
 // create table artists (id integer primary key autoincrement, artist text not null);
 // create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id));
-// create table tracks (id integer primary key autoincrement, album text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id));
+// create table tracks (id integer primary key autoincrement, track text not null, filename text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id));
 
 MusicModel::MusicModel(QObject *parent) :
     QSqlQueryModel(parent), m_artist(0), m_album(0)
