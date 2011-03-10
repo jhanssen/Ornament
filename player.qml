@@ -57,7 +57,7 @@ Rectangle {
                                     musicModel.currentAlbum = 0
                                 else if (musicModel.currentArtist !== 0)
                                     musicModel.currentArtist = 0
-                                return;
+                                return
                             }
 
                             if (musicModel.currentArtist === 0)
