@@ -90,10 +90,10 @@ void MusicModel::refresh(Mode mode)
         stmt = QLatin1String("select artists.artist, artists.id as artist from artists");
         break;
     case Artist:
-        stmt = QLatin1String("select albums.album, albums.id, artists.artist from artists, albums where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.artistid = artists.id");
+        stmt = QLatin1String("select albums.album, albums.id from artists, albums where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.artistid = artists.id");
         break;
     case Album:
-        stmt = QLatin1String("select tracks.track, tracks.id, artists.artist, albums.album from artists, albums, tracks where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.id = ") + QString::number(m_album) + QLatin1String(" and albums.artistid = artists.id and tracks.albumid = albums.id");
+        stmt = QLatin1String("select tracks.track, tracks.id from artists, albums, tracks where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.id = ") + QString::number(m_album) + QLatin1String(" and albums.artistid = artists.id and tracks.albumid = albums.id");
         break;
     }
 
