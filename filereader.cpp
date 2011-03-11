@@ -2,8 +2,8 @@
 #include <QDebug>
 
 #define FILEREADERDEVICE_READ 8192
-#define FILEREADERDEVICE_MIN (16384 * 4)
-#define FILEREADERDEVICE_MAX (16384 * 50)
+#define FILEREADERDEVICE_MIN (8192 * 4)
+#define FILEREADERDEVICE_MAX (8192 * 10)
 
 FileReader::FileReader(QObject *parent)
     : IOJob(parent)
