@@ -44,6 +44,10 @@ public slots:
     Status decode();
 
 private:
+    void decode16(QByteArray** out, char** outptr, char** outend, int* outsize);
+    void decode24(QByteArray** out, char** outptr, char** outend, int* outsize);
+
+private:
     QAudioFormat m_format;
 
     struct mad_stream m_stream;
@@ -54,6 +58,8 @@ private:
 
     QByteArray m_data;
     unsigned char* m_buffer;
+
+    void (CodecMad::*decodeFunc)(QByteArray** out, char** outptr, char** outend, int* outsize);
 };
 
 #endif

@@ -6,49 +6,6 @@
 #define CODEC_BUFFER_MAX (16384 * 50)
 #define CODEC_INPUT_READ 8192
 
-Buffer::Buffer()
-    : m_size(0)
-{
-}
-
-void Buffer::add(QByteArray *sub)
-{
-    m_subs.append(sub);
-    m_size += sub->size();
-}
-
-int Buffer::size() const
-{
-    return m_size;
-}
-
-bool Buffer::isEmpty() const
-{
-    return m_size == 0;
-}
-
-QByteArray Buffer::read(int size)
-{
-    QByteArray ret;
-    QByteArray* cur;
-    QLinkedList<QByteArray*>::Iterator it = m_subs.begin();
-    while (it != m_subs.end()) {
-        cur = *it;
-        if (ret.size() + cur->size() <= size)
-            ret += *cur;
-        else {
-            int rem = size - ret.size();
-            ret += cur->left(rem);
-            *cur = cur->mid(rem);
-            break;
-        }
-        delete cur;
-        it = m_subs.erase(it);
-    }
-    m_size -= ret.size();
-    return ret;
-}
-
 CodecDevice::CodecDevice(QObject *parent) :
     QIODevice(parent), m_input(0), m_codec(0)
 {
@@ -79,7 +36,7 @@ void CodecDevice::setCodec(Codec *codec)
 
 bool CodecDevice::fillBuffer()
 {
-    if (m_input->atEnd() || atEnd())
+    if (m_input->atEnd() || !m_input->isOpen())
         return false;
 
     Codec::Status status = m_codec->decode();
@@ -106,14 +63,19 @@ bool CodecDevice::fillBuffer()
     return true;
 }
 
+bool CodecDevice::open(OpenMode mode)
+{
+    bool ok = QIODevice::open(mode);
+    if (!ok || !m_input || !m_codec)
+        return false;
+
+    fillBuffer();
+
+    return true;
+}
+
 qint64 CodecDevice::bytesAvailable() const
 {
-    qDebug() << "hel lo?";
-    if (m_decoded.size() < CODEC_BUFFER_MIN) {
-        CodecDevice* that = const_cast<CodecDevice*>(this);
-        that->fillBuffer();
-    }
-
     return m_decoded.size();
 }
 
@@ -122,6 +84,7 @@ qint64 CodecDevice::readData(char *data, qint64 maxlen)
     qDebug() << "we go?";
     if (m_decoded.size() < CODEC_BUFFER_MIN) {
         if (!fillBuffer() && m_decoded.isEmpty()) {
+            qDebug() << "no go :(";
             close();
             return -1;
         }

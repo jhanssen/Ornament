@@ -1,7 +1,7 @@
 #include "audioplayer.h"
 #include "codecdevice.h"
+#include "filereader.h"
 #include "codecs/codecs.h"
-#include <QFile>
 #include <QDebug>
 
 AudioPlayer::AudioPlayer(QObject *parent) :
@@ -86,8 +86,8 @@ void AudioPlayer::play()
             delete tag;
         }
 
-        QFile* file = new QFile(m_filename);
-        if (!file->open(QFile::ReadOnly)) {
+        FileReaderDevice* file = new FileReaderDevice(m_filename);
+        if (!file->open(FileReaderDevice::ReadOnly)) {
             delete codec;
             delete file;
 

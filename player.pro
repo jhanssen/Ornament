@@ -15,7 +15,10 @@ HEADERS += codecs/codecs.h \
     codecdevice.h \
     audiodevice.h \
     audioplayer.h \
-    musicmodel.h
+    musicmodel.h \
+    io.h \
+    filereader.h \
+    buffer.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -23,7 +26,10 @@ SOURCES += main.cpp \
     codecdevice.cpp \
     audiodevice.cpp \
     audioplayer.cpp \
-    musicmodel.cpp
+    musicmodel.cpp \
+    io.cpp \
+    filereader.cpp \
+    buffer.cpp
 
 LIBS += codecs/mad/mad/libmad.a -ltag
 

@@ -3,23 +3,8 @@
 
 #include <QIODevice>
 #include <QLinkedList>
+#include "buffer.h"
 #include "codecs/codecs.h"
-
-class Buffer
-{
-public:
-    Buffer();
-
-    void add(QByteArray* sub);
-
-    bool isEmpty() const;
-    int size() const;
-    QByteArray read(int size);
-
-private:
-    QLinkedList<QByteArray*> m_subs;
-    int m_size;
-};
 
 class CodecDevice : public QIODevice
 {
@@ -33,6 +18,8 @@ public:
 
     void setInputDevice(QIODevice* input);
     void setCodec(Codec* codec);
+
+    bool open(OpenMode mode);
 
 protected:
     qint64 readData(char *data, qint64 maxlen);

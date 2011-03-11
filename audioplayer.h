@@ -5,7 +5,6 @@
 #include "audiodevice.h"
 
 class CodecDevice;
-class QFile;
 
 class AudioPlayer : public QObject
 {

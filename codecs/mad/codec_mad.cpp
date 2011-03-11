@@ -44,8 +44,8 @@
 #include <QImage>
 #include <QDebug>
 
-#define INPUT_BUFFER_SIZE (8192 * 5)
-#define OUTPUT_BUFFER_SIZE 8192
+#define INPUT_BUFFER_SIZE (8196 * 5)
+#define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
 
 CodecFactoryMad::CodecFactoryMad()
 {
@@ -71,6 +71,19 @@ static signed short MadFixedToSshort(mad_fixed_t Fixed)
     return((signed short)Fixed);
 }
 
+static signed int MadFixedToInt(mad_fixed_t Fixed)
+{
+    /* Clipping */
+    if(Fixed>=MAD_F_ONE)
+        return(INT_MAX);
+    if(Fixed<=-MAD_F_ONE)
+        return(-INT_MAX);
+
+    /* Conversion. */
+    Fixed=Fixed>>(MAD_F_FRACBITS-23);
+    return((signed int)Fixed);
+}
+
 CodecMad::CodecMad(const QString &codec, QObject *parent)
     : Codec(codec, parent), m_buffer(0)
 {
@@ -94,11 +107,78 @@ bool CodecMad::init(const QAudioFormat& format)
     if (!m_buffer)
         m_buffer = new unsigned char[INPUT_BUFFER_SIZE + MAD_BUFFER_GUARD];
 
+    // ### need to take m_format more into account here
+    if (format.sampleSize() == 24)
+        decodeFunc = &CodecMad::decode24;
+    else
+        decodeFunc = &CodecMad::decode16;
+
     return true;
+}
+
+void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* outsize)
+{
+    signed short sample;
+    for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
+        sample = MadFixedToSshort(m_synth.pcm.samples[0][i]);
+        *((*outptr)++) = sample & 0xff;
+        *((*outptr)++) = sample >> 8;
+
+        if (MAD_NCHANNELS(&m_frame.header) > 1)
+            sample = MadFixedToSshort(m_synth.pcm.samples[1][i]);
+
+        *((*outptr)++) = sample & 0xff;
+        *((*outptr)++) = sample >> 8;
+
+        *outsize += 4;
+
+        if (*outptr == *outend) {
+            emit output(*out);
+
+            *out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+            *outptr = (*out)->data();
+            *outend = *outptr + OUTPUT_BUFFER_SIZE;
+            *outsize = 0;
+        }
+    }
+}
+
+void CodecMad::decode24(QByteArray** out, char** outptr, char** outend, int* outsize)
+{
+    signed int sample;
+    for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
+        sample = MadFixedToInt(m_synth.pcm.samples[0][i]);
+        *((*outptr)++) = sample & 0xff;
+        *((*outptr)++) = (sample >> 8) & 0xff;
+        *((*outptr)++) = sample >> 16;
+
+        if (MAD_NCHANNELS(&m_frame.header) > 1)
+            sample = MadFixedToInt(m_synth.pcm.samples[1][i]);
+
+        *((*outptr)++) = sample & 0xff;
+        *((*outptr)++) = (sample >> 8) & 0xff;
+        *((*outptr)++) = sample >> 16;
+
+        *outsize += 6;
+
+        if (*outptr == *outend) {
+            emit output(*out);
+
+            *out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+            *outptr = (*out)->data();
+            *outend = *outptr + OUTPUT_BUFFER_SIZE;
+            *outsize = 0;
+        }
+    }
 }
 
 void CodecMad::feed(const QByteArray& data, bool end)
 {
+    static int totalpushed = 0;
+    totalpushed += data.size();
+    qDebug() << "total pushed" << totalpushed;
+
+    qDebug() << "had" << m_data.size() << "bytes already before pushing" << data.size();
     m_data += data;
 
     size_t rem = 0, copylen;
@@ -109,6 +189,8 @@ void CodecMad::feed(const QByteArray& data, bool end)
             memmove(m_buffer, m_stream.next_frame, rem);
         }
 
+        qDebug() << "rem?" << rem;
+
         copylen = qMin(INPUT_BUFFER_SIZE - rem, static_cast<long unsigned int>(m_data.size()));
         memcpy(m_buffer + rem, m_data.constData(), copylen);
         m_data = m_data.mid(copylen);
@@ -118,7 +200,7 @@ void CodecMad::feed(const QByteArray& data, bool end)
             copylen += MAD_BUFFER_GUARD;
         }
 
-        qDebug() << "pushing" << copylen << "bytes to mad";
+        qDebug() << "pushing" << copylen + rem << "bytes to mad";
 
         mad_stream_buffer(&m_stream, m_buffer, copylen + rem);
         m_stream.error = static_cast<mad_error>(0);
@@ -147,8 +229,6 @@ CodecMad::Status CodecMad::decode()
 
     mad_timer_add(&m_timer, m_frame.header.duration);
 
-    // ### need to take m_format into account here
-
     QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
     char* outptr = out->data();
     char* outend = outptr + OUTPUT_BUFFER_SIZE;
@@ -156,29 +236,7 @@ CodecMad::Status CodecMad::decode()
 
     mad_synth_frame(&m_synth, &m_frame);
 
-    signed short sample;
-    for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
-        sample = MadFixedToSshort(m_synth.pcm.samples[0][i]);
-        *(outptr++) = sample & 0xff;
-        *(outptr++) = sample >> 8;
-
-        if (MAD_NCHANNELS(&m_frame.header) > 1)
-            sample = MadFixedToSshort(m_synth.pcm.samples[1][i]);
-
-        *(outptr++) = sample & 0xff;
-        *(outptr++) = sample >> 8;
-
-        outsize += 4;
-
-        if (outptr == outend) {
-            emit output(out);
-
-            out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
-            outptr = out->data();
-            outend = outptr + OUTPUT_BUFFER_SIZE;
-            outsize = 0;
-        }
-    }
+    (this->*decodeFunc)(&out, &outptr, &outend, &outsize);
 
     if (outsize > 0) {
         out->truncate(outsize);
