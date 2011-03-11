@@ -19,22 +19,13 @@ private:
     QHash<QString, QVariant> m_data;
 };
 
-class CodecFactoryMad : public CodecFactory
-{
-public:
-    Codec* create(const QString& codec);
-
-private:
-    friend class Codecs;
-
-    CodecFactoryMad();
-};
-
 class CodecMad : public Codec
 {
     Q_OBJECT
+
+    Q_CLASSINFO("mimetype", "audio/mp3")
 public:
-    CodecMad(const QString& codec, QObject* parent = 0);
+    CodecMad(QObject* parent = 0);
 
     bool init(const QAudioFormat &format);
     Tag* tag(const QString &filename) const;

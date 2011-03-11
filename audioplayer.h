@@ -36,7 +36,7 @@ private slots:
     void outputStateChanged(QAudio::State state);
 
 private:
-    QString mimeType(const QString& filename) const;
+    QByteArray mimeType(const QString& filename) const;
 
 private:
     State m_state;

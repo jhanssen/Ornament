@@ -47,17 +47,6 @@
 #define INPUT_BUFFER_SIZE (8196 * 5)
 #define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
 
-CodecFactoryMad::CodecFactoryMad()
-{
-}
-
-Codec* CodecFactoryMad::create(const QString &codec)
-{
-    if (codec == QLatin1String("audio/mp3"))
-        return new CodecMad(codec);
-    return 0;
-}
-
 static signed short MadFixedToSshort(mad_fixed_t Fixed)
 {
     /* Clipping */
@@ -84,8 +73,8 @@ static signed int MadFixedToInt(mad_fixed_t Fixed)
     return((signed int)Fixed);
 }
 
-CodecMad::CodecMad(const QString &codec, QObject *parent)
-    : Codec(codec, parent), m_buffer(0)
+CodecMad::CodecMad(QObject *parent)
+    : Codec(parent), m_buffer(0)
 {
 }
 

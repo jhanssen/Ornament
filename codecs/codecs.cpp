@@ -1,7 +1,7 @@
 #include "codecs/codecs.h"
 #include "codecs/mad/codec_mad.h"
 
-QHash<QString, CodecFactory*> Codecs::s_factories;
+QHash<QByteArray, QMetaObject> Codecs::s_codecs;
 
 Tag::Tag(const QString &filename)
     : m_filename(filename)
@@ -27,51 +27,39 @@ Codecs::Codecs()
 {
 }
 
-QStringList Codecs::codecs()
+QList<QByteArray> Codecs::codecs()
 {
-    return s_factories.keys();
+    return s_codecs.keys();
 }
 
-Codec* Codecs::create(const QString &codec)
+Codec* Codecs::create(const QByteArray &codec)
 {
-    if (!s_factories.contains(codec))
+    if (!s_codecs.contains(codec))
         return 0;
-    return s_factories.value(codec)->create(codec);
-}
-
-void Codecs::addCodec(const QString &codec, CodecFactory *factory)
-{
-    s_factories[codec] = factory;
+    QObject* obj = s_codecs.value(codec).newInstance(Q_ARG(QObject*, 0));
+    Codec* c;
+    if (!obj || !(c = qobject_cast<Codec*>(obj))) {
+        delete obj;
+        return 0;
+    }
+    return c;
 }
 
 void Codecs::init()
 {
-    if (!s_factories.isEmpty())
+    if (!s_codecs.isEmpty())
         return;
 
-    addCodec(QLatin1String("audio/mp3"), new CodecFactoryMad);
+    addCodec<CodecMad>();
 }
 
-Codec::Codec(const QString &codec, QObject *parent)
-    : QObject(parent), m_codec(codec)
+Codec::Codec(QObject *parent)
+    : QObject(parent)
 {
-}
-
-QString Codec::codec() const
-{
-    return m_codec;
 }
 
 Tag* Codec::tag(const QString &filename) const
 {
     Q_UNUSED(filename)
     return 0;
-}
-
-CodecFactory::CodecFactory()
-{
-}
-
-CodecFactory::~CodecFactory()
-{
 }

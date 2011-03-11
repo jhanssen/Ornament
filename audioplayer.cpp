@@ -71,7 +71,7 @@ void AudioPlayer::play()
         delete m_codec;
         m_codec = 0;
 
-        QString mime = mimeType(m_filename);
+        QByteArray mime = mimeType(m_filename);
         if (mime.isEmpty())
             return;
 
@@ -129,17 +129,17 @@ void AudioPlayer::stop()
     m_audio->output()->stop();
 }
 
-QString AudioPlayer::mimeType(const QString &filename) const
+QByteArray AudioPlayer::mimeType(const QString &filename) const
 {
     if (filename.isEmpty())
-        return QString();
+        return QByteArray();
 
     int extpos = filename.lastIndexOf(QLatin1Char('.'));
     if (extpos > 0) {
         QString ext = filename.mid(extpos);
         if (ext == QLatin1String(".mp3"))
-            return QLatin1String("audio/mp3");
+            return QByteArray("audio/mp3");
     }
 
-    return QString();
+    return QByteArray();
 }
