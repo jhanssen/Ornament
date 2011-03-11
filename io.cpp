@@ -1,22 +1,8 @@
 #include "io.h"
-#include <QCoreApplication>
-#include <QEvent>
 #include <QDebug>
 
-class JobEvent : public QEvent
-{
-public:
-    enum Type { JobType = QEvent::User + 1 };
-
-    JobEvent(const QString& identifier, const QString& filename, int no);
-
-    QString m_identifier;
-    QString m_filename;
-    int m_no;
-};
-
-JobEvent::JobEvent(const QString &identifier, const QString &filename, int no)
-    : QEvent(static_cast<QEvent::Type>(JobType)), m_identifier(identifier), m_filename(filename), m_no(no)
+JobEvent::JobEvent(const QByteArray &classname, const QString &filename, int no)
+    : QEvent(static_cast<QEvent::Type>(JobType)), m_classname(classname), m_filename(filename), m_no(no)
 {
 }
 
@@ -36,16 +22,6 @@ StopEvent::StopEvent()
 IOJob::IOJob(QObject *parent)
     : QObject(parent), m_no(0)
 {
-}
-
-void IOJob::setIdentifier(const QString &identifier)
-{
-    m_identifier = identifier;
-}
-
-QString IOJob::identifier() const
-{
-    return m_identifier;
 }
 
 void IOJob::setFilename(const QString &filename)
@@ -109,14 +85,14 @@ void IO::init()
     }
 }
 
-bool IO::metaObjectForIdentifier(const QString& identifier, QMetaObject& meta)
+bool IO::metaObjectForClassname(const QByteArray& classname, QMetaObject& meta)
 {
     QMutexLocker locker(&m_mutex);
 
-    if (!m_registered.contains(identifier))
+    if (!m_registered.contains(classname))
         return false;
 
-    meta = m_registered.value(identifier);
+    meta = m_registered.value(classname);
 
     return true;
 }
@@ -125,28 +101,28 @@ bool IO::event(QEvent *event)
 {
     if (event->type() == static_cast<QEvent::Type>(JobEvent::JobType)) {
         JobEvent* jobevent = static_cast<JobEvent*>(event);
-        QString identifier = jobevent->m_identifier;
+        QByteArray classname = jobevent->m_classname;
 
         QMetaObject metaobj;
-        if (!metaObjectForIdentifier(identifier, metaobj)) {
-            emit error(QLatin1String("Unknown identifier: ") + identifier);
+        if (!metaObjectForClassname(classname, metaobj)) {
+            emit error(QLatin1String("Unknown classname: ") + classname);
             return true;
         }
 
         if (metaobj.constructorCount() == 0) {
-            emit error(QLatin1String("No invokable constructor: ") + identifier);
+            emit error(QLatin1String("No invokable constructor: ") + classname);
             return true;
         }
 
-        QObject* instance = metaobj.newInstance(Q_ARG(QObject*, this));
+        QObject* instance = metaobj.newInstance(Q_ARG(QObject*, 0));
         if (!instance) {
-            emit error(QLatin1String("Not able to create new instance: ") + identifier);
+            emit error(QLatin1String("Not able to create new instance: ") + classname);
             return true;
         }
 
         IOJob* job = qobject_cast<IOJob*>(instance);
         if (!job) {
-            emit error(QLatin1String("Instance is not an IOJob: ") + identifier + QLatin1String(", ") + QLatin1String(job->metaObject()->className()));
+            emit error(QLatin1String("Instance is not an IOJob: ") + classname + QLatin1String(", ") + QLatin1String(job->metaObject()->className()));
             delete instance;
             return true;
         }
@@ -154,16 +130,16 @@ bool IO::event(QEvent *event)
         int no = jobevent->m_no;
 
         job->setFilename(jobevent->m_filename);
-        job->setIdentifier(identifier);
         job->setJobNumber(no);
 
         m_jobs[no] = job;
         connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()));
 
-        emit jobStarted(job);
         qDebug() << "=== new job success!" << job->jobNumber() << job;
 
+        emit jobAboutToStart(job);
         job->init();
+        emit jobStarted(job);
 
         return true;
     } else if (event->type() == static_cast<QEvent::Type>(StopEvent::StopType)) {
@@ -190,7 +166,7 @@ void IO::localJobFinished()
     }
 
     if (!m_jobs.contains(job->jobNumber())) {
-        emit error(QLatin1String("Job finished but not in the list of jobs: ") + job->identifier());
+        emit error(QLatin1String("Job finished but not in the list of jobs: ") + QLatin1String(job->metaObject()->className()));
         delete job;
         return;
     }
@@ -206,17 +182,6 @@ int IO::nextJobNumber()
     while (m_jobs.contains(no))
         ++no;
     m_jobcount = no + 1;
-    return no;
-}
-
-int IO::postJob(const QString &identifier, const QString &filename)
-{
-    int no = nextJobNumber();
-    JobEvent* event = new JobEvent(identifier, filename, no);
-    QCoreApplication::postEvent(this, event);
-
-    qDebug() << "=== job posted" << no;
-
     return no;
 }
 

@@ -4,6 +4,7 @@
 #include "io.h"
 #include "buffer.h"
 #include <QFile>
+#include <QVector>
 
 class FileReader : public IOJob
 {
@@ -52,11 +53,13 @@ protected:
     qint64 writeData(const char *data, qint64 len);
 
 private slots:
+    void jobAboutToStart(IOJob* job);
     void jobStarted(IOJob* job);
     void jobFinished(IOJob* job);
     void readerData(QByteArray* data);
     void readerAtEnd();
     void ioError(const QString& message);
+    void readerError(const QString& message);
 
 private:
     QString m_filename;
@@ -65,6 +68,9 @@ private:
     int m_jobid;
     bool m_atend;
     FileReader* m_reader;
+
+    QVector<int> m_pending;
+    qint64 m_pendingTotal;
 };
 
 #endif // FILEREADER_H

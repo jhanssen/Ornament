@@ -7,6 +7,8 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QObject>
+#include <QCoreApplication>
+#include <QEvent>
 
 class IO;
 
@@ -16,7 +18,6 @@ class IOJob : public QObject
 public:
     IOJob(QObject* parent = 0);
 
-    QString identifier() const;
     QString filename() const;
     int jobNumber() const;
 
@@ -33,12 +34,10 @@ protected:
 protected:
     bool event(QEvent* event);
 
-    void setIdentifier(const QString& identifier);
     void setFilename(const QString& filename);
     void setJobNumber(int no);
 
 private:
-    QString m_identifier;
     QString m_filename;
     int m_no;
 
@@ -56,9 +55,10 @@ public:
     void stop();
 
     template<typename T>
-    void registerJob(const QString& identifier);
+    void registerJob();
 
-    int postJob(const QString& identifier, const QString& filename);
+    template<typename T>
+    int postJob(const QString& filename);
 
 protected:
     void run();
@@ -66,6 +66,7 @@ protected:
 
 signals:
     void error(const QString& message);
+    void jobAboutToStart(IOJob* job);
     void jobStarted(IOJob* job);
     void jobFinished(IOJob* job);
 
@@ -75,7 +76,7 @@ private slots:
 private:
     IO(QObject *parent = 0);
 
-    bool metaObjectForIdentifier(const QString& identifier, QMetaObject& meta);
+    bool metaObjectForClassname(const QByteArray& classname, QMetaObject& meta);
     int nextJobNumber();
 
 private:
@@ -84,19 +85,46 @@ private:
     QMutex m_mutex;
 
     int m_jobcount;
-    QHash<QString, QMetaObject> m_registered;
+    QHash<QByteArray, QMetaObject> m_registered;
     QHash<int, IOJob*> m_jobs;
 };
 
+class JobEvent : public QEvent
+{
+public:
+    enum Type { JobType = QEvent::User + 1 };
+
+    JobEvent(const QByteArray& classname, const QString& filename, int no);
+
+    QByteArray m_classname;
+    QString m_filename;
+    int m_no;
+};
+
 template<typename T>
-void IO::registerJob(const QString& identifier)
+void IO::registerJob()
 {
     QMutexLocker locker(&m_mutex);
 
-    if (m_registered.contains(identifier))
+    QByteArray classname(T::staticMetaObject.className());
+    if (m_registered.contains(classname))
         return;
 
-    m_registered[identifier] = T::staticMetaObject;
+    m_registered[classname] = T::staticMetaObject;
+}
+
+template<typename T>
+int IO::postJob(const QString &filename)
+{
+    QByteArray classname(T::staticMetaObject.className());
+
+    int no = nextJobNumber();
+    JobEvent* event = new JobEvent(classname, filename, no);
+    QCoreApplication::postEvent(this, event);
+
+    //qDebug() << "=== job posted" << no;
+
+    return no;
 }
 
 #endif // IO_H
