@@ -236,11 +236,6 @@ CodecMad::Status CodecMad::decode()
     return Ok;
 }
 
-Tag* CodecMad::tag(const QString &filename) const
-{
-    return new TagMad(filename);
-}
-
 template<typename T>
 void readRegularTag(T* tag, QHash<QString, QVariant>& data)
 {
@@ -253,10 +248,16 @@ void readRegularTag(T* tag, QHash<QString, QVariant>& data)
     data[QLatin1String("track")] = QVariant(tag->track());
 }
 
-TagMad::TagMad(const QString &filename)
-    : Tag(filename)
+TagMad::TagMad(const QString &filename, QObject* parent)
+    : Tag(filename, parent)
 {
-    TagLib::MPEG::File mpegfile(filename.toLocal8Bit().constData());
+}
+
+void TagMad::readTag()
+{
+    QString fn = filename();
+
+    TagLib::MPEG::File mpegfile(fn.toLocal8Bit().constData());
     TagLib::ID3v2::Tag* id3v2 = mpegfile.ID3v2Tag();
     if (id3v2) {
         readRegularTag(id3v2, m_data);
@@ -275,7 +276,7 @@ TagMad::TagMad(const QString &filename)
             ++it;
         }
     } else {
-        TagLib::FileRef fileref(filename.toLocal8Bit().constData());
+        TagLib::FileRef fileref(fn.toLocal8Bit().constData());
         TagLib::Tag* tag = fileref.tag();
         if (!tag)
             return;

@@ -12,30 +12,42 @@
 #include <QDebug>
 
 class Codec;
-class CodecFactory;
+class Tag;
 
-class Codecs
+class Codecs : public QObject
 {
+    Q_OBJECT
 public:
-    static QList<QByteArray> codecs();
-
+    static Codecs* instance();
     static void init();
 
-    static Codec* create(const QByteArray& mimetype);
+    QList<QByteArray> codecs();
+
+    Codec* createCodec(const QByteArray& mimetype);
+    void requestTag(const QByteArray& mimetype, const QString& filename);
 
     template<typename T>
-    static void addCodec();
+    void addCodec();
+
+    template<typename T>
+    void addTag();
+
+signals:
+    void tagReady(Tag* tag);
 
 private:
-    Codecs();
+    Codecs(QObject* parent = 0);
 
-    static QHash<QByteArray, QMetaObject> s_codecs;
+    static Codecs* s_inst;
+
+    QHash<QByteArray, QMetaObject> m_codecs;
+    QHash<QByteArray, QMetaObject> m_tags;
 };
 
-class Tag
+class Tag : public QObject
 {
+    Q_OBJECT
 public:
-    Tag(const QString& filename);
     virtual ~Tag();
 
     QString filename() const;
@@ -43,6 +55,12 @@ public:
     virtual QList<QString> keys() const = 0;
     virtual QVariant data(const QString& key) const = 0;
     virtual void setData(const QString& key, const QVariant& data);
+
+protected:
+    virtual void readTag() = 0;
+
+protected:
+    Tag(const QString& filename, QObject* parent = 0);
 
 private:
     QString m_filename;
@@ -55,8 +73,6 @@ public:
     enum Status { Ok, NeedInput, Error };
 
     Codec(QObject* parent = 0);
-
-    virtual Tag* tag(const QString& filename) const;
 
     virtual bool init(const QAudioFormat& format) = 0;
 
@@ -81,7 +97,23 @@ void Codecs::addCodec()
 
     QMetaClassInfo mimeinfo = metaobj.classInfo(mimepos);
     QByteArray mimetype(mimeinfo.value());
-    s_codecs[mimetype] = metaobj;
+    m_codecs[mimetype] = metaobj;
+}
+
+template<typename T>
+void Codecs::addTag()
+{
+    QMetaObject metaobj = T::staticMetaObject;
+
+    int mimepos = metaobj.indexOfClassInfo("mimetype");
+    if (mimepos == -1) {
+        qDebug() << "unable to create codec " << metaobj.className();
+        return;
+    }
+
+    QMetaClassInfo mimeinfo = metaobj.classInfo(mimepos);
+    QByteArray mimetype(mimeinfo.value());
+    m_tags[mimetype] = metaobj;
 }
 
 #endif

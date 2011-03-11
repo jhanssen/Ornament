@@ -9,13 +9,19 @@
 
 class TagMad : public Tag
 {
-public:
-    TagMad(const QString& filename);
+    Q_OBJECT
 
+    Q_CLASSINFO("mimetype", "audio/mp3")
+public:
     QList<QString> keys() const;
     QVariant data(const QString &key) const;
 
+protected:
+    void readTag();
+
 private:
+    Q_INVOKABLE TagMad(const QString& filename, QObject* parent = 0);
+
     QHash<QString, QVariant> m_data;
 };
 
@@ -25,10 +31,9 @@ class CodecMad : public Codec
 
     Q_CLASSINFO("mimetype", "audio/mp3")
 public:
-    CodecMad(QObject* parent = 0);
+    Q_INVOKABLE CodecMad(QObject* parent = 0);
 
     bool init(const QAudioFormat &format);
-    Tag* tag(const QString &filename) const;
 
 public slots:
     void feed(const QByteArray &data, bool end = false);

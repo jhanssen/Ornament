@@ -7,7 +7,6 @@
 AudioPlayer::AudioPlayer(QObject *parent) :
     QObject(parent), m_state(Stopped), m_audio(0), m_codec(0)
 {
-    Codecs::init();
 }
 
 QString AudioPlayer::filename() const
@@ -75,16 +74,18 @@ void AudioPlayer::play()
         if (mime.isEmpty())
             return;
 
-        Codec* codec = Codecs::create(mime);
+        Codec* codec = Codecs::instance()->createCodec(mime);
         if (!codec)
             return;
 
+        /*
         Tag* tag = codec->tag(m_filename);
         if (tag) {
             qDebug() << tag->keys();
             qDebug() << tag->data("title").toString();
             delete tag;
         }
+        */
 
         FileReaderDevice* file = new FileReaderDevice(m_filename);
         if (!file->open(FileReaderDevice::ReadOnly)) {

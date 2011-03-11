@@ -2,6 +2,7 @@
 #include "audioplayer.h"
 #include "musicmodel.h"
 #include "io.h"
+#include "codecs/codecs.h"
 #include "filereader.h"
 
 #include <QApplication>
@@ -12,6 +13,7 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
+    Codecs::init();
     IO::init();
     FileReader::registerType();
 
