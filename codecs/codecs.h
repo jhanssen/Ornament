@@ -3,12 +3,9 @@
 
 #include "codecs/tag.h"
 #include <QObject>
-#include <QStringList>
 #include <QString>
 #include <QByteArray>
 #include <QHash>
-#include <QAudioFormat>
-#include <QVariant>
 #include <QMetaClassInfo>
 #include <QMutex>
 #include <QDebug>
