@@ -40,6 +40,8 @@ void FileReader::readData(int size)
     if (m_file.atEnd()) {
         emit atEnd();
         m_file.close();
+
+        emit finished();
     }
 }
 
@@ -145,7 +147,7 @@ bool FileReaderDevice::open(OpenMode mode)
 void FileReaderDevice::jobAboutToStart(IOJob *job)
 {
     if (!m_reader && job->jobNumber() == m_jobid) {
-        m_reader = qobject_cast<FileReader*>(job);
+        m_reader = static_cast<FileReader*>(job); // not sure if qobject_cast<> is safe to call at this point
         if (!m_reader)
             return;
 
