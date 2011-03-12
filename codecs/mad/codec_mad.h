@@ -7,22 +7,16 @@
 #include <QHash>
 #include <QList>
 
-class TagMad : public Tag
+class TagGeneratorMad : public TagGenerator
 {
     Q_OBJECT
 
     Q_CLASSINFO("mimetype", "audio/mp3")
-public:
-    QList<QString> keys() const;
-    QVariant data(const QString &key) const;
-
 protected:
-    void readTag();
+    Tag readTag();
 
 private:
-    Q_INVOKABLE TagMad(const QString& filename, QObject* parent = 0);
-
-    QHash<QString, QVariant> m_data;
+    Q_INVOKABLE TagGeneratorMad(const QString& filename, QObject* parent = 0);
 };
 
 class CodecMad : public Codec

@@ -2,6 +2,8 @@
 #include "codecs/mad/codec_mad.h"
 #include "io.h"
 
+Q_DECLARE_METATYPE(Tag)
+
 Codecs* Codecs::s_inst = 0;
 
 class TagJob : public IOJob
@@ -10,46 +12,41 @@ class TagJob : public IOJob
 public:
     TagJob(QObject* parent = 0);
 
-    void setTag(Tag* tag);
+    void setTagGenerator(TagGenerator* tag);
 
 signals:
-    void tagReady(Tag* tag);
+    void tagReady(const Tag& tag);
 
 private:
-    Q_INVOKABLE void tagReceived();
+    Q_INVOKABLE void generatorReceived();
 
 private:
-    Tag* m_tag;
+    TagGenerator* m_generator;
 };
 
 #include "codecs.moc"
 
 TagJob::TagJob(QObject *parent)
-    : IOJob(parent), m_tag(0)
+    : IOJob(parent), m_generator(0)
 {
 }
 
-void TagJob::setTag(Tag *tag)
+void TagJob::setTagGenerator(TagGenerator *generator)
 {
-    m_tag = tag;
+    m_generator = generator;
 
-    QMetaObject::invokeMethod(this, "tagReceived");
+    QMetaObject::invokeMethod(this, "generatorReceived");
 }
 
-void TagJob::tagReceived()
+void TagJob::generatorReceived()
 {
-    m_tag->readTag();
+    Tag tag = m_generator->readTag();
 
-    emit tagReady(m_tag);
+    emit tagReady(tag);
     emit finished();
 }
 
-Tag::Tag(const QString &filename, QObject* parent)
-    : QObject(parent), m_filename(filename)
-{
-}
-
-Tag::~Tag()
+Tag::Tag()
 {
 }
 
@@ -58,20 +55,53 @@ QString Tag::filename() const
     return m_filename;
 }
 
-void Tag::setData(const QString &key, const QVariant &data)
+
+QVariant Tag::data(const QString &key) const
 {
-    Q_UNUSED(key)
-    Q_UNUSED(data)
+    if (!m_data.contains(key))
+        return QVariant();
+
+    return m_data.value(key);
+}
+
+QList<QString> Tag::keys() const
+{
+    return m_data.keys();
+}
+
+TagGenerator::TagGenerator(const QString &filename, QObject *parent)
+    : QObject(parent), m_filename(filename)
+{
+}
+
+Tag TagGenerator::createTag()
+{
+    return Tag();
+}
+
+Tag TagGenerator::createTag(const QString &filename, const QHash<QString, QVariant> &data)
+{
+    Tag t;
+    t.m_data = data;
+    t.m_filename = filename;
+    return t;
+}
+
+QString TagGenerator::filename() const
+{
+    return m_filename;
 }
 
 Codecs::Codecs(QObject* parent)
     : QObject(parent)
 {
     addCodec<CodecMad>();
-    addTag<TagMad>();
+    addTagGenerator<TagGeneratorMad>();
 
     IO::instance()->registerJob<TagJob>();
     connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
+
+    qRegisterMetaType<Tag>("Tag");
 }
 
 QList<QByteArray> Codecs::codecs()
@@ -85,28 +115,28 @@ void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
         return;
 
     QObject* obj = m_tags.value(mimetype).newInstance(Q_ARG(QString, filename), Q_ARG(QObject*, 0));
-    Tag* t;
-    if (!obj || !(t = qobject_cast<Tag*>(obj))) {
+    TagGenerator* generator;
+    if (!obj || !(generator = qobject_cast<TagGenerator*>(obj))) {
         delete obj;
         return;
     }
 
     int jobid = IO::instance()->postJob<TagJob>(filename);
-    m_pendingTags[jobid] = t;
+    m_pendingTags[jobid] = generator;
 }
 
 void Codecs::jobAboutToStart(IOJob *job)
 {
-    QHash<int, Tag*>::Iterator it = m_pendingTags.find(job->jobNumber());
+    QHash<int, TagGenerator*>::Iterator it = m_pendingTags.find(job->jobNumber());
     if (it == m_pendingTags.end())
         return;
 
-    Tag* t = it.value();
+    TagGenerator* generator = it.value();
     m_pendingTags.erase(it);
 
     TagJob* tagjob = static_cast<TagJob*>(job); // not sure if doing qobject_cast<> here would be safe
-    connect(tagjob, SIGNAL(tagReady(Tag*)), this, SIGNAL(tagReady(Tag*)));
-    tagjob->setTag(t);
+    connect(tagjob, SIGNAL(tagReady(Tag)), this, SIGNAL(tagReady(Tag)));
+    tagjob->setTagGenerator(generator);
 }
 
 Codec* Codecs::createCodec(const QByteArray &codec)

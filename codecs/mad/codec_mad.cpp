@@ -248,19 +248,20 @@ void readRegularTag(T* tag, QHash<QString, QVariant>& data)
     data[QLatin1String("track")] = QVariant(tag->track());
 }
 
-TagMad::TagMad(const QString &filename, QObject* parent)
-    : Tag(filename, parent)
+TagGeneratorMad::TagGeneratorMad(const QString &filename, QObject* parent)
+    : TagGenerator(filename, parent)
 {
 }
 
-void TagMad::readTag()
+Tag TagGeneratorMad::readTag()
 {
     QString fn = filename();
+    QHash<QString, QVariant> data;
 
     TagLib::MPEG::File mpegfile(fn.toLocal8Bit().constData());
     TagLib::ID3v2::Tag* id3v2 = mpegfile.ID3v2Tag();
     if (id3v2) {
-        readRegularTag(id3v2, m_data);
+        readRegularTag(id3v2, data);
 
         int picnum = 0;
 
@@ -271,29 +272,22 @@ void TagMad::readTag()
             TagLib::ByteVector bytes = apic->picture();
             QImage img = QImage::fromData(reinterpret_cast<const uchar*>(bytes.data()), bytes.size());
             if (!img.isNull()) {
-                m_data[QLatin1String("picture") + QString::number(picnum++)] = QVariant(img);
+                data[QLatin1String("picture") + QString::number(picnum++)] = QVariant(img);
             }
             ++it;
         }
+
+        return createTag(fn, data);
     } else {
         TagLib::FileRef fileref(fn.toLocal8Bit().constData());
         TagLib::Tag* tag = fileref.tag();
         if (!tag)
-            return;
+            return createTag();
 
-        readRegularTag(tag, m_data);
+        readRegularTag(tag, data);
+
+        return createTag(fn, data);
     }
-}
 
-QVariant TagMad::data(const QString &key) const
-{
-    if (!m_data.contains(key))
-        return QVariant();
-
-    return m_data.value(key);
-}
-
-QList<QString> TagMad::keys() const
-{
-    return m_data.keys();
+    return createTag();
 }

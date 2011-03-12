@@ -15,6 +15,7 @@ class Codec;
 class Tag;
 class IOJob;
 class TagJob;
+class TagGenerator;
 
 class Codecs : public QObject
 {
@@ -32,10 +33,10 @@ public:
     void addCodec();
 
     template<typename T>
-    void addTag();
+    void addTagGenerator();
 
 signals:
-    void tagReady(Tag* tag);
+    void tagReady(const Tag& tag);
 
 private slots:
     void jobAboutToStart(IOJob* job);
@@ -48,28 +49,40 @@ private:
     QHash<QByteArray, QMetaObject> m_codecs;
     QHash<QByteArray, QMetaObject> m_tags;
 
-    QHash<int, Tag*> m_pendingTags;
+    QHash<int, TagGenerator*> m_pendingTags;
 };
 
-class Tag : public QObject
+class Tag
 {
-    Q_OBJECT
 public:
-    virtual ~Tag();
+    Tag();
 
     QString filename() const;
 
-    virtual QList<QString> keys() const = 0;
-    virtual QVariant data(const QString& key) const = 0;
-    virtual void setData(const QString& key, const QVariant& data);
+    QList<QString> keys() const;
+    QVariant data(const QString& key) const;
 
+private:
+    QString m_filename;
+    QHash<QString, QVariant> m_data;
+
+    friend class TagGenerator;
+};
+
+class TagGenerator : public QObject
+{
+    Q_OBJECT
 protected:
     // This method will be called from the IO thread
     // so make sure it doesn't touch any QObject things
-    virtual void readTag() = 0;
+    virtual Tag readTag() = 0;
+
+    Tag createTag();
+    Tag createTag(const QString& filename, const QHash<QString, QVariant>& data);
+    QString filename() const;
 
 protected:
-    Tag(const QString& filename, QObject* parent = 0);
+    TagGenerator(const QString& filename, QObject* parent = 0);
 
 private:
     QString m_filename;
@@ -112,7 +125,7 @@ void Codecs::addCodec()
 }
 
 template<typename T>
-void Codecs::addTag()
+void Codecs::addTagGenerator()
 {
     QMetaObject metaobj = T::staticMetaObject;
 
