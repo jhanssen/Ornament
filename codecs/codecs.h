@@ -13,6 +13,8 @@
 
 class Codec;
 class Tag;
+class IOJob;
+class TagJob;
 
 class Codecs : public QObject
 {
@@ -35,6 +37,9 @@ public:
 signals:
     void tagReady(Tag* tag);
 
+private slots:
+    void jobAboutToStart(IOJob* job);
+
 private:
     Codecs(QObject* parent = 0);
 
@@ -42,6 +47,8 @@ private:
 
     QHash<QByteArray, QMetaObject> m_codecs;
     QHash<QByteArray, QMetaObject> m_tags;
+
+    QHash<int, Tag*> m_pendingTags;
 };
 
 class Tag : public QObject
@@ -57,6 +64,8 @@ public:
     virtual void setData(const QString& key, const QVariant& data);
 
 protected:
+    // This method will be called from the IO thread
+    // so make sure it doesn't touch any QObject things
     virtual void readTag() = 0;
 
 protected:
@@ -64,6 +73,8 @@ protected:
 
 private:
     QString m_filename;
+
+    friend class TagJob;
 };
 
 class Codec : public QObject

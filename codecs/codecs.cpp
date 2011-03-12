@@ -1,7 +1,48 @@
 #include "codecs/codecs.h"
 #include "codecs/mad/codec_mad.h"
+#include "io.h"
 
 Codecs* Codecs::s_inst = 0;
+
+class TagJob : public IOJob
+{
+    Q_OBJECT
+public:
+    TagJob(QObject* parent = 0);
+
+    void setTag(Tag* tag);
+
+signals:
+    void tagReady(Tag* tag);
+
+private:
+    Q_INVOKABLE void tagReceived();
+
+private:
+    Tag* m_tag;
+};
+
+#include "codecs.moc"
+
+TagJob::TagJob(QObject *parent)
+    : IOJob(parent), m_tag(0)
+{
+}
+
+void TagJob::setTag(Tag *tag)
+{
+    m_tag = tag;
+
+    QMetaObject::invokeMethod(this, "tagReceived");
+}
+
+void TagJob::tagReceived()
+{
+    m_tag->readTag();
+
+    emit tagReady(m_tag);
+    emit finished();
+}
 
 Tag::Tag(const QString &filename, QObject* parent)
     : QObject(parent), m_filename(filename)
@@ -28,6 +69,9 @@ Codecs::Codecs(QObject* parent)
 {
     addCodec<CodecMad>();
     addTag<TagMad>();
+
+    IO::instance()->registerJob<TagJob>();
+    connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
 }
 
 QList<QByteArray> Codecs::codecs()
@@ -47,7 +91,22 @@ void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
         return;
     }
 
-    // Need to post a TagJob here and call readTag() from the job
+    int jobid = IO::instance()->postJob<TagJob>(filename);
+    m_pendingTags[jobid] = t;
+}
+
+void Codecs::jobAboutToStart(IOJob *job)
+{
+    QHash<int, Tag*>::Iterator it = m_pendingTags.find(job->jobNumber());
+    if (it == m_pendingTags.end())
+        return;
+
+    Tag* t = it.value();
+    m_pendingTags.erase(it);
+
+    TagJob* tagjob = static_cast<TagJob*>(job); // not sure if doing qobject_cast<> here would be safe
+    connect(tagjob, SIGNAL(tagReady(Tag*)), this, SIGNAL(tagReady(Tag*)));
+    tagjob->setTag(t);
 }
 
 Codec* Codecs::createCodec(const QByteArray &codec)
