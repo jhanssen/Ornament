@@ -173,7 +173,7 @@ void IO::localJobFinished()
 
     emit jobFinished(job);
     m_jobs.remove(job->jobNumber());
-    delete job;
+    job->deleteLater();
 }
 
 int IO::nextJobNumber()

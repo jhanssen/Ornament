@@ -28,7 +28,6 @@ signals:
     void finished();
 
 protected:
-    // This is probably not needed, can do this in the c'tor instead?
     virtual void init();
 
 protected:
