@@ -1,6 +1,7 @@
 #include "audioplayer.h"
 #include "codecdevice.h"
 #include "filereader.h"
+#include "codecs/codec.h"
 #include "codecs/codecs.h"
 #include <QDebug>
 

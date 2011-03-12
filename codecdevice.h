@@ -4,7 +4,8 @@
 #include <QIODevice>
 #include <QLinkedList>
 #include "buffer.h"
-#include "codecs/codecs.h"
+
+class Codec;
 
 class CodecDevice : public QIODevice
 {

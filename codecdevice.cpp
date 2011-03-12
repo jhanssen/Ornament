@@ -1,4 +1,5 @@
 #include "codecdevice.h"
+#include "codecs/codec.h"
 #include <QApplication>
 #include <QDebug>
 

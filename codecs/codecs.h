@@ -56,45 +56,6 @@ private:
     QHash<int, TagGenerator*> m_pendingTags;
 };
 
-class TagGenerator : public QObject
-{
-    Q_OBJECT
-public:
-    TagGenerator(const QString& filename, QObject* parent = 0);
-
-protected:
-    // This method will be called from the IO thread
-    // so make sure it doesn't touch any QObject things
-    virtual Tag readTag() = 0;
-
-    Tag createTag();
-    Tag createTag(const QString& filename, const QHash<QString, QVariant>& data);
-    QString filename() const;
-
-private:
-    QString m_filename;
-
-    friend class TagJob;
-};
-
-class Codec : public QObject
-{
-    Q_OBJECT
-public:
-    enum Status { Ok, NeedInput, Error };
-
-    Codec(QObject* parent = 0);
-
-    virtual bool init(const QAudioFormat& format) = 0;
-
-signals:
-    void output(QByteArray* data);
-
-public slots:
-    virtual void feed(const QByteArray& data, bool end = false) = 0;
-    virtual Status decode() = 0;
-};
-
 template<typename T>
 void Codecs::addCodec()
 {

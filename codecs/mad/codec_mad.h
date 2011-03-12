@@ -1,7 +1,8 @@
 #ifndef PLAYERCODEC_MAD_H
 #define PLAYERCODEC_MAD_H
 
-#include "codecs/codecs.h"
+#include "codecs/codec.h"
+#include "codecs/tag.h"
 #include "codecs/mad/mad/include/mad.h"
 
 #include <QHash>

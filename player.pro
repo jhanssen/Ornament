@@ -11,6 +11,7 @@ QT += multimedia declarative sql
 
 # Input
 HEADERS += codecs/codecs.h \
+    codecs/codec.h \
     codecs/tag.h \
     codecs/mad/codec_mad.h \
     codecdevice.h \
@@ -23,6 +24,7 @@ HEADERS += codecs/codecs.h \
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
+    codecs/codec.cpp \
     codecs/tag.cpp \
     codecs/mad/codec_mad.cpp \
     codecdevice.cpp \
