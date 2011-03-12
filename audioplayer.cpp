@@ -7,6 +7,7 @@
 AudioPlayer::AudioPlayer(QObject *parent) :
     QObject(parent), m_state(Stopped), m_audio(0), m_codec(0)
 {
+    connect(Codecs::instance(), SIGNAL(tagReady(Tag)), this, SLOT(tagReady(Tag)));
 }
 
 QString AudioPlayer::filename() const
@@ -35,6 +36,13 @@ void AudioPlayer::setAudioDevice(AudioDevice *device)
     if (m_audio && m_audio->output())
         connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
                 this, SLOT(outputStateChanged(QAudio::State)));
+}
+
+void AudioPlayer::tagReady(const Tag &tag)
+{
+    qDebug() << "tag:" << tag.filename();
+    qDebug() << tag.keys();
+    qDebug() << tag.data("title").toString();
 }
 
 void AudioPlayer::outputStateChanged(QAudio::State state)
@@ -74,18 +82,11 @@ void AudioPlayer::play()
         if (mime.isEmpty())
             return;
 
+        Codecs::instance()->requestTag(mime, m_filename);
+
         Codec* codec = Codecs::instance()->createCodec(mime);
         if (!codec)
             return;
-
-        /*
-        Tag* tag = codec->tag(m_filename);
-        if (tag) {
-            qDebug() << tag->keys();
-            qDebug() << tag->data("title").toString();
-            delete tag;
-        }
-        */
 
         FileReaderDevice* file = new FileReaderDevice(m_filename);
         if (!file->open(FileReaderDevice::ReadOnly)) {

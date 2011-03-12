@@ -9,6 +9,7 @@
 #include <QAudioFormat>
 #include <QVariant>
 #include <QMetaClassInfo>
+#include <QMutex>
 #include <QDebug>
 
 class Codec;
@@ -40,6 +41,7 @@ signals:
 
 private slots:
     void jobAboutToStart(IOJob* job);
+    void ioError(const QString& error);
 
 private:
     Codecs(QObject* parent = 0);
@@ -49,6 +51,7 @@ private:
     QHash<QByteArray, QMetaObject> m_codecs;
     QHash<QByteArray, QMetaObject> m_tags;
 
+    QMutex m_tagMutex;
     QHash<int, TagGenerator*> m_pendingTags;
 };
 
@@ -69,9 +72,14 @@ private:
     friend class TagGenerator;
 };
 
+Q_DECLARE_METATYPE(Tag)
+
 class TagGenerator : public QObject
 {
     Q_OBJECT
+public:
+    TagGenerator(const QString& filename, QObject* parent = 0);
+
 protected:
     // This method will be called from the IO thread
     // so make sure it doesn't touch any QObject things
@@ -80,9 +88,6 @@ protected:
     Tag createTag();
     Tag createTag(const QString& filename, const QHash<QString, QVariant>& data);
     QString filename() const;
-
-protected:
-    TagGenerator(const QString& filename, QObject* parent = 0);
 
 private:
     QString m_filename;

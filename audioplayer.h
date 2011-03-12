@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include "audiodevice.h"
+#include "codecs/codecs.h"
 
 class CodecDevice;
 
@@ -31,6 +32,7 @@ public slots:
     void play();
     void pause();
     void stop();
+    void tagReady(const Tag& tag);
 
 private slots:
     void outputStateChanged(QAudio::State state);

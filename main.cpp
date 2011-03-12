@@ -13,8 +13,8 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    Codecs::init();
     IO::init();
+    Codecs::init();
     FileReader::registerType();
 
     qmlRegisterType<AudioDevice>("AudioDevice", 1, 0, "AudioDevice");

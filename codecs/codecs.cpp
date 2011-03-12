@@ -1,8 +1,7 @@
 #include "codecs/codecs.h"
 #include "codecs/mad/codec_mad.h"
 #include "io.h"
-
-Q_DECLARE_METATYPE(Tag)
+#include <QMutexLocker>
 
 Codecs* Codecs::s_inst = 0;
 
@@ -10,7 +9,7 @@ class TagJob : public IOJob
 {
     Q_OBJECT
 public:
-    TagJob(QObject* parent = 0);
+    Q_INVOKABLE TagJob(QObject* parent = 0);
 
     void setTagGenerator(TagGenerator* tag);
 
@@ -100,6 +99,7 @@ Codecs::Codecs(QObject* parent)
 
     IO::instance()->registerJob<TagJob>();
     connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
+    connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 
     qRegisterMetaType<Tag>("Tag");
 }
@@ -107,6 +107,11 @@ Codecs::Codecs(QObject* parent)
 QList<QByteArray> Codecs::codecs()
 {
     return m_codecs.keys();
+}
+
+void Codecs::ioError(const QString &error)
+{
+    qDebug() << "codecs ioerror" << error;
 }
 
 void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
@@ -121,18 +126,23 @@ void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
         return;
     }
 
+    QMutexLocker locker(&m_tagMutex);
     int jobid = IO::instance()->postJob<TagJob>(filename);
     m_pendingTags[jobid] = generator;
 }
 
 void Codecs::jobAboutToStart(IOJob *job)
 {
-    QHash<int, TagGenerator*>::Iterator it = m_pendingTags.find(job->jobNumber());
-    if (it == m_pendingTags.end())
-        return;
+    TagGenerator* generator;
+    {
+        QMutexLocker locker(&m_tagMutex);
+        QHash<int, TagGenerator*>::Iterator it = m_pendingTags.find(job->jobNumber());
+        if (it == m_pendingTags.end())
+            return;
 
-    TagGenerator* generator = it.value();
-    m_pendingTags.erase(it);
+        generator = it.value();
+        m_pendingTags.erase(it);
+    }
 
     TagJob* tagjob = static_cast<TagJob*>(job); // not sure if doing qobject_cast<> here would be safe
     connect(tagjob, SIGNAL(tagReady(Tag)), this, SIGNAL(tagReady(Tag)));
