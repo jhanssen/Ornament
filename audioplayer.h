@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include "audiodevice.h"
-#include "codecs/codecs.h"
+#include "codecs/tag.h"
 
 class CodecDevice;
 

@@ -1,6 +1,7 @@
 #ifndef PLAYERCODECS_H
 #define PLAYERCODECS_H
 
+#include "codecs/tag.h"
 #include <QObject>
 #include <QStringList>
 #include <QString>
@@ -54,25 +55,6 @@ private:
     QMutex m_tagMutex;
     QHash<int, TagGenerator*> m_pendingTags;
 };
-
-class Tag
-{
-public:
-    Tag();
-
-    QString filename() const;
-
-    QList<QString> keys() const;
-    QVariant data(const QString& key) const;
-
-private:
-    QString m_filename;
-    QHash<QString, QVariant> m_data;
-
-    friend class TagGenerator;
-};
-
-Q_DECLARE_METATYPE(Tag)
 
 class TagGenerator : public QObject
 {
