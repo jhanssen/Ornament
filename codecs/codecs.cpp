@@ -53,7 +53,7 @@ Codecs::Codecs(QObject* parent)
     addTagGenerator<TagGeneratorMad>();
 
     IO::instance()->registerJob<TagJob>();
-    connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
+    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 
     qRegisterMetaType<Tag>("Tag");
@@ -86,7 +86,7 @@ void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
     m_pendingTags[jobid] = generator;
 }
 
-void Codecs::jobAboutToStart(IOJob *job)
+void Codecs::jobCreated(IOJob *job)
 {
     TagGenerator* generator;
     {

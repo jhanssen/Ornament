@@ -11,6 +11,7 @@ typedef QSet<QString> PathSet;
 
 struct Album;
 struct Track;
+class IOJob;
 
 struct Artist
 {
@@ -57,6 +58,9 @@ signals:
     void tag(const Tag& tag);
     void artist(const Artist& artist);
 
+private slots:
+    void jobCreated(IOJob* job);
+
 private:
     MediaLibrary(QObject *parent = 0);
 
@@ -64,6 +68,8 @@ private:
 
     QStringList m_paths;
     PathSet m_updatedPaths;
+
+    QSet<int> m_pendingJobs;
 };
 
 #endif // MEDIALIBRARY_H

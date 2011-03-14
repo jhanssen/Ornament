@@ -23,10 +23,11 @@ public:
     QVariant arg() const;
     void setArg(const QVariant& arg);
 
-protected:
-    void init();
+    void start();
 
 private:
+    Q_INVOKABLE void startJob();
+
     void updatePaths(const PathSet& paths);
 
 private:
@@ -37,6 +38,22 @@ private:
 MediaJob::MediaJob(QObject* parent)
     : IOJob(parent), m_type(None)
 {
+}
+
+void MediaJob::start()
+{
+    QMetaObject::invokeMethod(this, "startJob");
+}
+
+void MediaJob::startJob()
+{
+    switch (m_type) {
+    case UpdatePaths:
+        updatePaths(m_arg.value<PathSet>());
+        break;
+    default:
+        break;
+    }
 }
 
 MediaJob::Type MediaJob::type() const
@@ -59,17 +76,6 @@ void MediaJob::setArg(const QVariant &arg)
     m_arg = arg;
 }
 
-void MediaJob::init()
-{
-    switch (m_type) {
-    case UpdatePaths:
-        updatePaths(m_arg.value<PathSet>());
-        break;
-    default:
-        break;
-    }
-}
-
 void MediaJob::updatePaths(const PathSet &paths)
 {
     foreach(QString path, paths) {
@@ -85,6 +91,8 @@ MediaLibrary::MediaLibrary(QObject *parent) :
     QObject(parent)
 {
     IO::instance()->registerJob<MediaJob>();
+    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
+
     qRegisterMetaType<PathSet>("PathSet");
 }
 
@@ -129,7 +137,9 @@ void MediaLibrary::update()
     PropertyHash args;
     args["type"] = MediaJob::UpdatePaths;
     args["arg"] = QVariant::fromValue<PathSet>(toupdate);
-    IO::instance()->postJob<MediaJob>(args);
+
+    int jobid = IO::instance()->postJob<MediaJob>(args);
+    m_pendingJobs.insert(jobid);
 
     m_updatedPaths += toupdate;
 }
@@ -144,4 +154,14 @@ void MediaLibrary::requestTag(const QString &filename)
 
 void MediaLibrary::setTag(const QString &filename, const Tag &tag)
 {
+}
+
+void MediaLibrary::jobCreated(IOJob *job)
+{
+    if (m_pendingJobs.contains(job->jobNumber())) {
+        m_pendingJobs.remove(job->jobNumber());
+        MediaJob* media = static_cast<MediaJob*>(job);
+
+        media->start();
+    }
 }

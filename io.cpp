@@ -34,10 +34,6 @@ int IOJob::jobNumber() const
     return m_no;
 }
 
-void IOJob::init()
-{
-}
-
 void IOJob::stop()
 {
     StopEvent* event = new StopEvent;
@@ -135,9 +131,7 @@ bool IO::event(QEvent *event)
 
         qDebug() << "=== new job success!" << job->jobNumber() << job;
 
-        emit jobAboutToStart(job);
-        job->init();
-        emit jobStarted(job);
+        emit jobCreated(job);
 
         return true;
     } else if (event->type() == static_cast<QEvent::Type>(StopEvent::StopType)) {

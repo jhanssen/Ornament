@@ -15,11 +15,18 @@ void FileReader::registerType()
     IO::instance()->registerJob<FileReader>();
 }
 
-void FileReader::init()
+void FileReader::start()
+{
+    QMetaObject::invokeMethod(this, "startJob");
+}
+
+void FileReader::startJob()
 {
     m_file.setFileName(filename());
     if (!m_file.open(QFile::ReadOnly))
         emit error(QLatin1String("Unable to open file: ") + filename());
+
+    emit started();
 }
 
 void FileReader::read(int size)
@@ -58,8 +65,7 @@ void FileReader::setFilename(const QString &filename)
 FileReaderDevice::FileReaderDevice(QObject *parent)
     : QIODevice(parent), m_jobid(0), m_atend(false), m_reader(0), m_pendingTotal(0)
 {
-    connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
-    connect(IO::instance(), SIGNAL(jobStarted(IOJob*)), this, SLOT(jobStarted(IOJob*)));
+    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
@@ -67,8 +73,7 @@ FileReaderDevice::FileReaderDevice(QObject *parent)
 FileReaderDevice::FileReaderDevice(const QString &filename, QObject *parent)
     : QIODevice(parent), m_filename(filename), m_jobid(0), m_atend(false), m_reader(0), m_pendingTotal(0)
 {
-    connect(IO::instance(), SIGNAL(jobAboutToStart(IOJob*)), this, SLOT(jobAboutToStart(IOJob*)));
-    connect(IO::instance(), SIGNAL(jobStarted(IOJob*)), this, SLOT(jobStarted(IOJob*)));
+    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
@@ -117,6 +122,7 @@ void FileReaderDevice::close()
 
     m_buffer.clear();
     if (m_reader) {
+        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
         disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
@@ -140,6 +146,7 @@ bool FileReaderDevice::open(OpenMode mode)
 
     m_buffer.clear();
     if (m_reader) {
+        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
         disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
@@ -156,24 +163,24 @@ bool FileReaderDevice::open(OpenMode mode)
     return true;
 }
 
-void FileReaderDevice::jobAboutToStart(IOJob *job)
+void FileReaderDevice::jobCreated(IOJob *job)
 {
     if (!m_reader && job->jobNumber() == m_jobid) {
         m_reader = static_cast<FileReader*>(job); // not sure if qobject_cast<> is safe to call at this point
         if (!m_reader)
             return;
 
+        connect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
         connect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         connect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         connect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
+
+        m_reader->start();
     }
 }
 
-void FileReaderDevice::jobStarted(IOJob *job)
+void FileReaderDevice::jobStarted()
 {
-    if (job != m_reader)
-        return;
-
     int bsz = m_buffer.size();
     while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX) {
         m_reader->read(FILEREADERDEVICE_READ);
@@ -185,6 +192,7 @@ void FileReaderDevice::jobStarted(IOJob *job)
 void FileReaderDevice::jobFinished(IOJob *job)
 {
     if (m_reader == job) {
+        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
         disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));

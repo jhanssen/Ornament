@@ -38,7 +38,7 @@ signals:
     void tagReady(const Tag& tag);
 
 private slots:
-    void jobAboutToStart(IOJob* job);
+    void jobCreated(IOJob* job);
     void ioError(const QString& error);
 
 private:

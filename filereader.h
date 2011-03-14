@@ -21,15 +21,16 @@ public:
     QString filename() const;
     void setFilename(const QString& filename);
 
-protected:
-    void init();
+    void start();
 
 signals:
+    void started();
     void data(QByteArray* data);
     void atEnd();
 
 private:
     Q_INVOKABLE void readData(int size);
+    Q_INVOKABLE void startJob();
 
 private:
     QString m_filename;
@@ -59,8 +60,8 @@ protected:
     qint64 writeData(const char *data, qint64 len);
 
 private slots:
-    void jobAboutToStart(IOJob* job);
-    void jobStarted(IOJob* job);
+    void jobStarted();
+    void jobCreated(IOJob* job);
     void jobFinished(IOJob* job);
     void readerData(QByteArray* data);
     void readerAtEnd();

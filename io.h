@@ -30,9 +30,6 @@ signals:
     void finished();
 
 protected:
-    virtual void init();
-
-protected:
     bool event(QEvent* event);
 
     void setJobNumber(int no);
@@ -65,8 +62,7 @@ protected:
 
 signals:
     void error(const QString& message);
-    void jobAboutToStart(IOJob* job);
-    void jobStarted(IOJob* job);
+    void jobCreated(IOJob* job);
     void jobFinished(IOJob* job);
 
 private slots:
