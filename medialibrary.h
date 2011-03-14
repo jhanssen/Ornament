@@ -46,7 +46,8 @@ public:
     QStringList paths();
     void setPaths(const QStringList& paths);
     void addPath(const QString& path);
-    void update();
+    void incrementalUpdate();
+    void fullUpdate();
 
     void readLibrary();
 

@@ -122,7 +122,7 @@ void MediaLibrary::addPath(const QString &path)
     m_paths.append(path);
 }
 
-void MediaLibrary::update()
+void MediaLibrary::incrementalUpdate()
 {
     PathSet toupdate;
 
@@ -142,6 +142,18 @@ void MediaLibrary::update()
     m_pendingJobs.insert(jobid);
 
     m_updatedPaths += toupdate;
+}
+
+void MediaLibrary::fullUpdate()
+{
+    m_updatedPaths = PathSet::fromList(m_paths);
+
+    PropertyHash args;
+    args["type"] = MediaJob::UpdatePaths;
+    args["arg"] = QVariant::fromValue<PathSet>(m_updatedPaths);
+
+    int jobid = IO::instance()->postJob<MediaJob>(args);
+    m_pendingJobs.insert(jobid);
 }
 
 void MediaLibrary::readLibrary()
