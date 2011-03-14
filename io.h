@@ -54,7 +54,7 @@ public:
     void stop();
 
     template<typename T>
-    void registerJob();
+    bool registerJob();
 
     template<typename T>
     int postJob(const PropertyHash& properties = PropertyHash());
@@ -101,13 +101,13 @@ public:
 };
 
 template<typename T>
-void IO::registerJob()
+bool IO::registerJob()
 {
     QMutexLocker locker(&m_mutex);
 
     QByteArray classname(T::staticMetaObject.className());
     if (m_registered.contains(classname))
-        return;
+        return false;
 
     // Check if the class inherits IOJob
     const QMetaObject* super = T::staticMetaObject.superClass();
@@ -117,9 +117,10 @@ void IO::registerJob()
         super = super->superClass();
     }
     if (!super)
-        return;
+        return false;
 
     m_registered[classname] = T::staticMetaObject;
+    return true;
 }
 
 template<typename T>
