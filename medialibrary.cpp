@@ -6,6 +6,7 @@
 #include <QSqlQuery>
 
 Q_DECLARE_METATYPE(PathSet)
+Q_DECLARE_METATYPE(Artist)
 
 class MediaJob;
 
@@ -345,6 +346,7 @@ MediaLibrary::MediaLibrary(QObject *parent) :
 
     qRegisterMetaType<PathSet>("PathSet");
     qRegisterMetaType<Tag>("Tag");
+    qRegisterMetaType<Artist>("Artist");
 }
 
 MediaLibrary* MediaLibrary::instance()
