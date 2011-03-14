@@ -73,3 +73,8 @@ QList<QString> Tag::keys() const
 {
     return m_data.keys();
 }
+
+bool Tag::isValid() const
+{
+    return !m_data.isEmpty();
+}

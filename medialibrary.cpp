@@ -161,14 +161,14 @@ void MediaData::updatePath(MediaJob* job, const QString &path)
 {
     QDir dir(path);
     QString cleanFile;
+
     QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot | QDir::Readable);
     foreach(QString file, files) {
         cleanFile = QDir::cleanPath(path + QLatin1String("/") + file);
 
         Tag tag;
         job->readTag(cleanFile, tag);
-
-        {
+        if (tag.isValid()) {
             QMutexLocker locker(mutex);
             // ### cache artistid and albumid here? would that be safe?
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
@@ -177,6 +177,11 @@ void MediaData::updatePath(MediaJob* job, const QString &path)
         }
 
         QThread::yieldCurrentThread();
+    }
+
+    QStringList dirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    foreach(QString directory, dirs) {
+        updatePath(job, QDir::cleanPath(path + "/" + directory));
     }
 }
 

@@ -18,6 +18,8 @@ public:
     QList<QString> keys() const;
     QVariant data(const QString& key) const;
 
+    bool isValid() const;
+
 private:
     Tag(const QString& filename);
 
