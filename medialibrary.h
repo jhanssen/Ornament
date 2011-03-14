@@ -3,8 +3,11 @@
 
 #include <QObject>
 #include <QStringList>
+#include <QSet>
 
 #include "codecs/tag.h"
+
+typedef QSet<QString> PathSet;
 
 struct Album;
 struct Track;
@@ -60,6 +63,7 @@ private:
     static MediaLibrary* s_inst;
 
     QStringList m_paths;
+    PathSet m_updatedPaths;
 };
 
 #endif // MEDIALIBRARY_H
