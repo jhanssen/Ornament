@@ -15,7 +15,7 @@ class MediaJob : public IOJob
 public:
     enum Type { None, UpdatePaths, RequestTag, SetTag, ReadLibrary };
 
-    MediaJob(QObject* parent = 0);
+    Q_INVOKABLE MediaJob(QObject* parent = 0);
 
     Type type() const;
     void setType(Type type);
@@ -29,6 +29,9 @@ private:
     Q_INVOKABLE void startJob();
 
     void updatePaths(const PathSet& paths);
+    void requestTag(const QString& filename);
+    void setTag(const QString& filename, const Tag& tag);
+    void readLibrary();
 
 private:
     Type m_type;
@@ -50,6 +53,19 @@ void MediaJob::startJob()
     switch (m_type) {
     case UpdatePaths:
         updatePaths(m_arg.value<PathSet>());
+        break;
+    case RequestTag:
+        requestTag(m_arg.toString());
+        break;
+    case SetTag:
+    {
+        QList<QVariant> args = m_arg.toList();
+        if (args.size() == 2)
+            setTag(args.at(0).toString(), args.at(1).value<Tag>());
+        break;
+    }
+    case ReadLibrary:
+        readLibrary();
         break;
     default:
         break;
@@ -81,6 +97,18 @@ void MediaJob::updatePaths(const PathSet &paths)
     foreach(QString path, paths) {
         qDebug() << "update path" << path;
     }
+}
+
+void MediaJob::requestTag(const QString &filename)
+{
+}
+
+void MediaJob::setTag(const QString &filename, const Tag &tag)
+{
+}
+
+void MediaJob::readLibrary()
+{
 }
 
 #include "medialibrary.moc"
@@ -158,14 +186,35 @@ void MediaLibrary::fullUpdate()
 
 void MediaLibrary::readLibrary()
 {
+    PropertyHash args;
+    args["type"] = MediaJob::ReadLibrary;
+
+    int jobid = IO::instance()->postJob<MediaJob>(args);
+    m_pendingJobs.insert(jobid);
 }
 
 void MediaLibrary::requestTag(const QString &filename)
 {
+    PropertyHash args;
+    args["type"] = MediaJob::RequestTag;
+    args["arg"] = filename;
+
+    int jobid = IO::instance()->postJob<MediaJob>(args);
+    m_pendingJobs.insert(jobid);
 }
 
 void MediaLibrary::setTag(const QString &filename, const Tag &tag)
 {
+    QList<QVariant> list;
+    list.append(filename);
+    list.append(QVariant::fromValue<Tag>(tag));
+
+    PropertyHash args;
+    args["type"] = MediaJob::SetTag;
+    args["arg"] = list;
+
+    int jobid = IO::instance()->postJob<MediaJob>(args);
+    m_pendingJobs.insert(jobid);
 }
 
 void MediaLibrary::jobCreated(IOJob *job)
