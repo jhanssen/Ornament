@@ -109,6 +109,16 @@ void IO::registerJob()
     if (m_registered.contains(classname))
         return;
 
+    // Check if the class inherits IOJob
+    const QMetaObject* super = T::staticMetaObject.superClass();
+    while (super) {
+        if (qstrcmp(super->className(), "IOJob") == 0)
+            break;
+        super = super->superClass();
+    }
+    if (!super)
+        return;
+
     m_registered[classname] = T::staticMetaObject;
 }
 
