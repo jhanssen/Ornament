@@ -35,13 +35,6 @@
  ****************************************************************************/
 
 #include "codec_mad.h"
-#include "codecs/mad/taglib/taglib/fileref.h"
-#include "codecs/mad/taglib/taglib/tag.h"
-#include "codecs/mad/taglib/taglib/mpeg/mpegfile.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2tag.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2frame.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/frames/attachedpictureframe.h"
-#include <QImage>
 #include <QDebug>
 
 #define INPUT_BUFFER_SIZE (8196 * 5)
@@ -234,60 +227,4 @@ CodecMad::Status CodecMad::decode()
         delete out;
 
     return Ok;
-}
-
-template<typename T>
-void readRegularTag(T* tag, QHash<QString, QVariant>& data)
-{
-    data[QLatin1String("title")] = QVariant(TStringToQString(tag->title()));
-    data[QLatin1String("artist")] = QVariant(TStringToQString(tag->artist()));
-    data[QLatin1String("album")] = QVariant(TStringToQString(tag->album()));
-    data[QLatin1String("comment")] = QVariant(TStringToQString(tag->comment()));
-    data[QLatin1String("genre")] = QVariant(TStringToQString(tag->genre()));
-    data[QLatin1String("year")] = QVariant(tag->year());
-    data[QLatin1String("track")] = QVariant(tag->track());
-}
-
-TagGeneratorMad::TagGeneratorMad(const QString &filename, QObject* parent)
-    : TagGenerator(filename, parent)
-{
-}
-
-Tag TagGeneratorMad::readTag()
-{
-    QString fn = filename();
-    QHash<QString, QVariant> data;
-
-    TagLib::MPEG::File mpegfile(fn.toLocal8Bit().constData());
-    TagLib::ID3v2::Tag* id3v2 = mpegfile.ID3v2Tag();
-    if (id3v2) {
-        readRegularTag(id3v2, data);
-
-        int picnum = 0;
-
-        TagLib::ID3v2::FrameList frames = id3v2->frameListMap()["APIC"]; // attached picture
-        TagLib::ID3v2::FrameList::ConstIterator it = frames.begin();
-        while (it != frames.end()) {
-            TagLib::ID3v2::AttachedPictureFrame* apic = static_cast<TagLib::ID3v2::AttachedPictureFrame*>(*it);
-            TagLib::ByteVector bytes = apic->picture();
-            QImage img = QImage::fromData(reinterpret_cast<const uchar*>(bytes.data()), bytes.size());
-            if (!img.isNull()) {
-                data[QLatin1String("picture") + QString::number(picnum++)] = QVariant(img);
-            }
-            ++it;
-        }
-
-        return createTag(fn, data);
-    } else {
-        TagLib::FileRef fileref(fn.toLocal8Bit().constData());
-        TagLib::Tag* tag = fileref.tag();
-        if (!tag)
-            return createTag();
-
-        readRegularTag(tag, data);
-
-        return createTag(fn, data);
-    }
-
-    return createTag();
 }

@@ -3,12 +3,13 @@
 #include "filereader.h"
 #include "codecs/codec.h"
 #include "codecs/codecs.h"
+#include "medialibrary.h"
 #include <QDebug>
 
 AudioPlayer::AudioPlayer(QObject *parent) :
     QObject(parent), m_state(Stopped), m_audio(0), m_codec(0)
 {
-    connect(Codecs::instance(), SIGNAL(tagReady(Tag)), this, SLOT(tagReady(Tag)));
+    connect(MediaLibrary::instance(), SIGNAL(tag(Tag)), this, SLOT(tagReady(Tag)));
 }
 
 QString AudioPlayer::filename() const
@@ -83,7 +84,7 @@ void AudioPlayer::play()
         if (mime.isEmpty())
             return;
 
-        Codecs::instance()->requestTag(mime, m_filename);
+        MediaLibrary::instance()->requestTag(m_filename);
 
         Codec* codec = Codecs::instance()->createCodec(mime);
         if (!codec)

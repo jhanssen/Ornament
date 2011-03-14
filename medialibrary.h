@@ -5,7 +5,7 @@
 #include <QStringList>
 #include <QSet>
 
-#include "codecs/tag.h"
+#include "tag.h"
 
 typedef QSet<QString> PathSet;
 

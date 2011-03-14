@@ -8,18 +8,6 @@
 #include <QHash>
 #include <QList>
 
-class TagGeneratorMad : public TagGenerator
-{
-    Q_OBJECT
-
-    Q_CLASSINFO("mimetype", "audio/mp3")
-public:
-    Q_INVOKABLE TagGeneratorMad(const QString& filename, QObject* parent = 0);
-
-protected:
-    Tag readTag();
-};
-
 class CodecMad : public Codec
 {
     Q_OBJECT

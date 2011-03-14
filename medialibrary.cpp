@@ -25,6 +25,9 @@ public:
 
     void start();
 
+signals:
+    void tag(const Tag& tag);
+
 private:
     Q_INVOKABLE void startJob();
 
@@ -101,6 +104,8 @@ void MediaJob::updatePaths(const PathSet &paths)
 
 void MediaJob::requestTag(const QString &filename)
 {
+    Tag t(filename);
+    emit tag(t);
 }
 
 void MediaJob::setTag(const QString &filename, const Tag &tag)
@@ -122,6 +127,7 @@ MediaLibrary::MediaLibrary(QObject *parent) :
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
 
     qRegisterMetaType<PathSet>("PathSet");
+    qRegisterMetaType<Tag>("Tag");
 }
 
 MediaLibrary* MediaLibrary::instance()
@@ -221,7 +227,10 @@ void MediaLibrary::jobCreated(IOJob *job)
 {
     if (m_pendingJobs.contains(job->jobNumber())) {
         m_pendingJobs.remove(job->jobNumber());
+
         MediaJob* media = static_cast<MediaJob*>(job);
+
+        connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
 
         media->start();
     }

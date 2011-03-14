@@ -1,107 +1,19 @@
 #include "codecs/codecs.h"
 #include "codecs/codec.h"
 #include "codecs/mad/codec_mad.h"
-#include "io.h"
 #include <QMutexLocker>
 
 Codecs* Codecs::s_inst = 0;
-
-class TagJob : public IOJob
-{
-    Q_OBJECT
-public:
-    Q_INVOKABLE TagJob(QObject* parent = 0);
-
-    void setTagGenerator(TagGenerator* tag);
-
-signals:
-    void tagReady(const Tag& tag);
-
-private:
-    Q_INVOKABLE void generatorReceived();
-
-private:
-    TagGenerator* m_generator;
-};
-
-#include "codecs.moc"
-
-TagJob::TagJob(QObject *parent)
-    : IOJob(parent), m_generator(0)
-{
-}
-
-void TagJob::setTagGenerator(TagGenerator *generator)
-{
-    m_generator = generator;
-
-    QMetaObject::invokeMethod(this, "generatorReceived");
-}
-
-void TagJob::generatorReceived()
-{
-    Tag tag = m_generator->readTag();
-
-    emit tagReady(tag);
-    emit finished();
-}
 
 Codecs::Codecs(QObject* parent)
     : QObject(parent)
 {
     addCodec<CodecMad>();
-    addTagGenerator<TagGeneratorMad>();
-
-    IO::instance()->registerJob<TagJob>();
-    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
-    connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
-
-    qRegisterMetaType<Tag>("Tag");
 }
 
 QList<QByteArray> Codecs::codecs()
 {
     return m_codecs.keys();
-}
-
-void Codecs::ioError(const QString &error)
-{
-    qDebug() << "codecs ioerror" << error;
-}
-
-void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
-{
-    if (!m_tags.contains(mimetype))
-        return;
-
-    QObject* obj = m_tags.value(mimetype).newInstance(Q_ARG(QString, filename), Q_ARG(QObject*, 0));
-    TagGenerator* generator;
-    if (!obj || !(generator = qobject_cast<TagGenerator*>(obj))) {
-        delete obj;
-        return;
-    }
-
-    QMutexLocker locker(&m_tagMutex);
-    int jobid = IO::instance()->postJob<TagJob>();
-    m_pendingTags[jobid] = generator;
-}
-
-void Codecs::jobCreated(IOJob *job)
-{
-    TagGenerator* generator;
-    {
-        QMutexLocker locker(&m_tagMutex);
-        QHash<int, TagGenerator*>::Iterator it = m_pendingTags.find(job->jobNumber());
-        if (it == m_pendingTags.end())
-            return;
-
-        generator = it.value();
-        m_pendingTags.erase(it);
-    }
-
-    TagJob* tagjob = static_cast<TagJob*>(job); // not sure if doing qobject_cast<> here would be safe
-    connect(tagjob, SIGNAL(tagReady(Tag)), this, SIGNAL(tagReady(Tag)));
-    tagjob->setTagGenerator(generator);
 }
 
 Codec* Codecs::createCodec(const QByteArray &codec)
