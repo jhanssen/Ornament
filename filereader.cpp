@@ -45,6 +45,16 @@ void FileReader::readData(int size)
     }
 }
 
+QString FileReader::filename() const
+{
+    return m_filename;
+}
+
+void FileReader::setFilename(const QString &filename)
+{
+    m_filename = filename;
+}
+
 FileReaderDevice::FileReaderDevice(QObject *parent)
     : QIODevice(parent), m_jobid(0), m_atend(false), m_reader(0), m_pendingTotal(0)
 {
@@ -139,7 +149,9 @@ bool FileReaderDevice::open(OpenMode mode)
         m_pendingTotal = 0;
     }
 
-    m_jobid = IO::instance()->postJob<FileReader>(m_filename);
+    PropertyHash props;
+    props["filename"] = m_filename;
+    m_jobid = IO::instance()->postJob<FileReader>(props);
 
     return true;
 }

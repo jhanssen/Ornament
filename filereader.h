@@ -9,12 +9,17 @@
 class FileReader : public IOJob
 {
     Q_OBJECT
+
+    Q_PROPERTY(QString filename READ filename WRITE setFilename)
 public:
     Q_INVOKABLE FileReader(QObject *parent = 0);
 
     static void registerType();
 
     void read(int size);
+
+    QString filename() const;
+    void setFilename(const QString& filename);
 
 protected:
     void init();
@@ -27,6 +32,7 @@ private:
     Q_INVOKABLE void readData(int size);
 
 private:
+    QString m_filename;
     QFile m_file;
 };
 

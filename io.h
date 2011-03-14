@@ -8,9 +8,12 @@
 #include <QMutexLocker>
 #include <QObject>
 #include <QCoreApplication>
+#include <QVariant>
 #include <QEvent>
 
 class IO;
+
+typedef QHash<QByteArray, QVariant> PropertyHash;
 
 class IOJob : public QObject
 {
@@ -18,7 +21,6 @@ class IOJob : public QObject
 public:
     IOJob(QObject* parent = 0);
 
-    QString filename() const;
     int jobNumber() const;
 
     void stop();
@@ -33,11 +35,9 @@ protected:
 protected:
     bool event(QEvent* event);
 
-    void setFilename(const QString& filename);
     void setJobNumber(int no);
 
 private:
-    QString m_filename;
     int m_no;
 
     friend class IO;
@@ -57,7 +57,7 @@ public:
     void registerJob();
 
     template<typename T>
-    int postJob(const QString& filename);
+    int postJob(const PropertyHash& properties = PropertyHash());
 
 protected:
     void run();
@@ -93,11 +93,11 @@ class JobEvent : public QEvent
 public:
     enum Type { JobType = QEvent::User + 1 };
 
-    JobEvent(const QByteArray& classname, const QString& filename, int no);
+    JobEvent(const QByteArray& classname, int no, const PropertyHash& properties);
 
     QByteArray m_classname;
-    QString m_filename;
     int m_no;
+    PropertyHash m_properties;
 };
 
 template<typename T>
@@ -113,12 +113,12 @@ void IO::registerJob()
 }
 
 template<typename T>
-int IO::postJob(const QString &filename)
+int IO::postJob(const PropertyHash& properties)
 {
     QByteArray classname(T::staticMetaObject.className());
 
     int no = nextJobNumber();
-    JobEvent* event = new JobEvent(classname, filename, no);
+    JobEvent* event = new JobEvent(classname, no, properties);
     QCoreApplication::postEvent(this, event);
 
     //qDebug() << "=== job posted" << no;

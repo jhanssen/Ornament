@@ -82,7 +82,7 @@ void Codecs::requestTag(const QByteArray &mimetype, const QString &filename)
     }
 
     QMutexLocker locker(&m_tagMutex);
-    int jobid = IO::instance()->postJob<TagJob>(filename);
+    int jobid = IO::instance()->postJob<TagJob>();
     m_pendingTags[jobid] = generator;
 }
 

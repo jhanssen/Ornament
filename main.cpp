@@ -4,6 +4,7 @@
 #include "io.h"
 #include "codecs/codecs.h"
 #include "filereader.h"
+#include "medialibrary.h"
 
 #include <QApplication>
 #include <QDeclarativeComponent>
@@ -15,6 +16,7 @@ int main(int argc, char** argv)
 
     IO::init();
     Codecs::init();
+    MediaLibrary::init();
     FileReader::registerType();
 
     qmlRegisterType<AudioDevice>("AudioDevice", 1, 0, "AudioDevice");

@@ -1,8 +1,8 @@
 #include "io.h"
 #include <QDebug>
 
-JobEvent::JobEvent(const QByteArray &classname, const QString &filename, int no)
-    : QEvent(static_cast<QEvent::Type>(JobType)), m_classname(classname), m_filename(filename), m_no(no)
+JobEvent::JobEvent(const QByteArray &classname, int no, const PropertyHash& properties)
+    : QEvent(static_cast<QEvent::Type>(JobType)), m_classname(classname), m_no(no), m_properties(properties)
 {
 }
 
@@ -22,16 +22,6 @@ StopEvent::StopEvent()
 IOJob::IOJob(QObject *parent)
     : QObject(parent), m_no(0)
 {
-}
-
-void IOJob::setFilename(const QString &filename)
-{
-    m_filename = filename;
-}
-
-QString IOJob::filename() const
-{
-    return m_filename;
 }
 
 void IOJob::setJobNumber(int no)
@@ -129,8 +119,16 @@ bool IO::event(QEvent *event)
 
         int no = jobevent->m_no;
 
-        job->setFilename(jobevent->m_filename);
         job->setJobNumber(no);
+        PropertyHash props = jobevent->m_properties;
+        if (!props.isEmpty()) {
+            PropertyHash::ConstIterator it = props.begin();
+            PropertyHash::ConstIterator itend = props.end();
+            while (it != itend) {
+                job->setProperty(it.key().constData(), it.value());
+                ++it;
+            }
+        }
 
         m_jobs[no] = job;
         connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()));
