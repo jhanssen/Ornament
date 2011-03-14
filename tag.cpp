@@ -64,7 +64,7 @@ QString Tag::filename() const
 QVariant Tag::data(const QString &key) const
 {
     if (!m_data.contains(key))
-        return QVariant();
+        return QLatin1String("Unknown");
 
     return m_data.value(key);
 }
