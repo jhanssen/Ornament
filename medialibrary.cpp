@@ -46,15 +46,18 @@ public:
 
     void start();
 
-    void readTag(const QString& path, Tag& tag);
-    void emitArtist(const Artist& artist);
-
 signals:
     void tag(const Tag& tag);
+    void tagWritten(const QString& filename);
+
     void artist(const Artist& artist);
+    void updateStarted();
+    void updateFinished();
 
 private:
     Q_INVOKABLE void startJob();
+
+    void readTag(const QString& path, Tag& tag);
 
     void updatePaths(const PathSet& paths);
     void requestTag(const QString& filename);
@@ -62,6 +65,8 @@ private:
     void readLibrary();
 
     void createData();
+
+    friend class MediaData;
 
 private:
     Type m_type;
@@ -220,7 +225,7 @@ void MediaData::readLibrary(MediaJob* job)
 
         locker.unlock();
 
-        job->emitArtist(artistData);
+        emit job->artist(artistData);
         QThread::yieldCurrentThread();
 
         locker.relock();
@@ -292,10 +297,14 @@ void MediaJob::setArg(const QVariant &arg)
 
 void MediaJob::updatePaths(const PathSet &paths)
 {
+    emit updateStarted();
+
     createData();
     foreach(QString path, paths) {
         s_data->updatePath(this, path);
     }
+
+    emit updateFinished();
 }
 
 void MediaJob::requestTag(const QString &filename)
@@ -306,17 +315,15 @@ void MediaJob::requestTag(const QString &filename)
 
 void MediaJob::setTag(const QString &filename, const Tag &tag)
 {
+    // ### need to write the tag here
+
+    emit tagWritten(filename);
 }
 
 void MediaJob::readLibrary()
 {
     createData();
     s_data->readLibrary(this);
-}
-
-void MediaJob::emitArtist(const Artist &a)
-{
-    emit artist(a);
 }
 
 void MediaJob::readTag(const QString &path, Tag& tag)
@@ -441,7 +448,10 @@ void MediaLibrary::jobCreated(IOJob *job)
         MediaJob* media = static_cast<MediaJob*>(job);
 
         connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
-        connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
+        connect(media, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
+        connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));
+        connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
+        connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
 
         media->start();
     }

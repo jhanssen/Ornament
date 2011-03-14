@@ -55,9 +55,12 @@ public:
     void setTag(const QString& filename, const Tag& tag);
 
 signals:
-    void updateProgress(int percentage);
     void tag(const Tag& tag);
+    void tagWritten(const QString& filename);
+
     void artist(const Artist& artist);
+    void updateStarted();
+    void updateFinished();
 
 private slots:
     void jobCreated(IOJob* job);
