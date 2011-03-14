@@ -1,8 +1,29 @@
 #include "medialibrary.h"
 #include "io.h"
 #include <QDebug>
+#include <QDir>
+#include <QSqlDatabase>
+#include <QSqlQuery>
 
 Q_DECLARE_METATYPE(PathSet)
+
+class MediaJob;
+
+struct MediaData
+{
+    MediaData();
+
+    void updatePath(MediaJob* job, const QString& path);
+    void readLibrary(MediaJob* job);
+
+    void createTables();
+    int addArtist(const QString& name);
+    int addAlbum(int artistid, const QString& name);
+    int addTrack(int artistid, int albumid, const QString& name, const QString& filename);
+
+    static QMutex* mutex;
+    QSqlDatabase database;
+};
 
 class MediaJob : public IOJob
 {
@@ -25,8 +46,12 @@ public:
 
     void start();
 
+    void readTag(const QString& path, Tag& tag);
+    void emitArtist(const Artist& artist);
+
 signals:
     void tag(const Tag& tag);
+    void artist(const Artist& artist);
 
 private:
     Q_INVOKABLE void startJob();
@@ -36,14 +61,184 @@ private:
     void setTag(const QString& filename, const Tag& tag);
     void readLibrary();
 
+    void createData();
+
 private:
     Type m_type;
     QVariant m_arg;
+
+    static MediaData* s_data;
 };
+
+QMutex* MediaData::mutex = 0;
+
+MediaData::MediaData()
+{
+    database = QSqlDatabase::addDatabase("QSQLITE");
+    database.setDatabaseName("player.db");
+    database.open();
+
+    QStringList tables = database.tables();
+    if (!tables.contains(QLatin1String("artists"))
+        || !tables.contains(QLatin1String("albums"))
+        || !tables.contains(QLatin1String("tracks")))
+        createTables();
+}
+
+void MediaData::createTables()
+{
+    QSqlQuery q(database);
+    q.exec(QLatin1String("create table artists (id integer primary key autoincrement, artist text not null)"));
+    q.exec(QLatin1String("create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id))"));
+    q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
+}
+
+int MediaData::addArtist(const QString &name)
+{
+    QSqlQuery q(database);
+
+    q.prepare("select id from artists where artists.artist = ?");
+    q.bindValue(0, name);
+    if (q.exec())
+        return q.value(0).toInt();
+
+    q.prepare("insert into artists (artist) values (?)");
+    q.bindValue(0, name);
+    if (!q.exec())
+        return -1;
+
+    return q.lastInsertId().toInt();
+}
+
+int MediaData::addAlbum(int artistid, const QString &name)
+{
+    QSqlQuery q(database);
+
+    q.prepare("select id from albums where albums.album = ? and albums.artistid = ?");
+    q.bindValue(0, name);
+    q.bindValue(1, artistid);
+    if (q.exec())
+        return q.value(0).toInt();
+
+    q.prepare("insert into albums (album, artistid) values (?, ?)");
+    q.bindValue(0, name);
+    q.bindValue(1, artistid);
+    if (!q.exec())
+        return -1;
+
+    return q.lastInsertId().toInt();
+}
+
+int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename)
+{
+    QSqlQuery q(database);
+
+    q.prepare("select id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ?");
+    q.bindValue(0, name);
+    q.bindValue(1, albumid);
+    q.bindValue(2, artistid);
+    if (q.exec())
+        return q.value(0).toInt();
+
+    q.prepare("insert into tracks (track, filename, artistid, albumid) values (?, ?, ?, ?)");
+    q.bindValue(0, name);
+    q.bindValue(1, filename);
+    q.bindValue(2, artistid);
+    q.bindValue(3, albumid);
+    if (!q.exec())
+        return -1;
+
+    return q.lastInsertId().toInt();
+}
+
+void MediaData::updatePath(MediaJob* job, const QString &path)
+{
+    QDir dir(path);
+    QString cleanFile;
+    QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot | QDir::Readable);
+    foreach(QString file, files) {
+        cleanFile = QDir::cleanPath(path + QLatin1String("/") + file);
+
+        Tag tag;
+        job->readTag(cleanFile, tag);
+
+        {
+            QMutexLocker locker(mutex);
+            // ### cache artistid and albumid here? would that be safe?
+            int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
+            int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
+            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), path);
+        }
+
+        QThread::yieldCurrentThread();
+    }
+}
+
+void MediaData::readLibrary(MediaJob* job)
+{
+    QMutexLocker locker(mutex);
+
+    QSqlQuery artistQuery, albumQuery, trackQuery;
+
+    artistQuery.exec("select artists.id, artists.artist from artists");
+    while (artistQuery.next()) {
+        Artist artistData;
+
+        int artistid = artistQuery.value(0).toInt();
+
+        artistData.id = artistid;
+        artistData.name = artistQuery.value(1).toString();
+
+        albumQuery.prepare("select albums.id, albums.album from albums where albums.artistid = ?");
+        albumQuery.bindValue(0, artistid);
+        albumQuery.exec();
+        while (albumQuery.next()) {
+            Album albumData;
+
+            int albumid = albumQuery.value(0).toInt();
+
+            albumData.id = albumid;
+            albumData.name = albumQuery.value(1).toString();
+
+            trackQuery.prepare("select tracks.id, tracks.track, tracks.filename from tracks where tracks.artistid = ? and tracks.albumid = ?");
+            trackQuery.bindValue(0, artistid);
+            trackQuery.bindValue(1, albumid);
+            trackQuery.exec();
+
+            while (trackQuery.next()) {
+                Track trackData;
+
+                trackData.id = trackQuery.value(0).toInt();
+                trackData.name = trackQuery.value(1).toString();
+                trackData.filename = trackQuery.value(2).toString();
+
+                albumData.tracks.append(trackData);
+            }
+
+            artistData.albums.append(albumData);
+        }
+
+        locker.unlock();
+
+        job->emitArtist(artistData);
+        QThread::yieldCurrentThread();
+
+        locker.relock();
+    }
+}
+
+MediaData* MediaJob::s_data = 0;
 
 MediaJob::MediaJob(QObject* parent)
     : IOJob(parent), m_type(None)
 {
+}
+
+void MediaJob::createData()
+{
+    QMutexLocker locker(MediaData::mutex);
+    if (!s_data)
+        s_data = new MediaData;
 }
 
 void MediaJob::start()
@@ -97,8 +292,9 @@ void MediaJob::setArg(const QVariant &arg)
 
 void MediaJob::updatePaths(const PathSet &paths)
 {
+    createData();
     foreach(QString path, paths) {
-        qDebug() << "update path" << path;
+        s_data->updatePath(this, path);
     }
 }
 
@@ -114,6 +310,18 @@ void MediaJob::setTag(const QString &filename, const Tag &tag)
 
 void MediaJob::readLibrary()
 {
+    createData();
+    s_data->readLibrary(this);
+}
+
+void MediaJob::emitArtist(const Artist &a)
+{
+    emit artist(a);
+}
+
+void MediaJob::readTag(const QString &path, Tag& tag)
+{
+    tag = Tag(path);
 }
 
 #include "medialibrary.moc"
@@ -123,6 +331,8 @@ MediaLibrary* MediaLibrary::s_inst = 0;
 MediaLibrary::MediaLibrary(QObject *parent) :
     QObject(parent)
 {
+    MediaData::mutex = new QMutex;
+
     IO::instance()->registerJob<MediaJob>();
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
 
@@ -230,6 +440,7 @@ void MediaLibrary::jobCreated(IOJob *job)
 
         MediaJob* media = static_cast<MediaJob*>(job);
 
+        connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
         connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
 
         media->start();
