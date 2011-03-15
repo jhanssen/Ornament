@@ -31,19 +31,19 @@ void MusicModel::updateArtist(const Artist &artist)
     } else {
         QString name = artist.name;
         int id = artist.id;
-        Artist& artist = m_artists[id];
+        Artist& existingArtist = m_artists[id];
         // ### double lookup here due to foreach() only accepting const arguments. Fix?
         foreach(const Album& album, artist.albums) {
             if (!artist.albums.contains(album.id)) {
-                artist.albums[album.id] = album;
+                existingArtist.albums[album.id] = album;
             } else {
-                artist.albums[album.id].name = album.name;
+                existingArtist.albums[album.id].name = album.name;
                 foreach(const Track& track, album.tracks) {
-                    artist.albums[album.id].tracks[track.id] = track;
+                    existingArtist.albums[album.id].tracks[track.id] = track;
                 }
             }
         }
-        artist.name = name;
+        existingArtist.name = name;
 
         // ### better to figure out the exact row of the updated artist perhaps
         emit dataChanged(createIndex(0, 0), createIndex(m_artists.size() - 1, 0));

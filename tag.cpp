@@ -28,7 +28,7 @@ Tag::Tag(const QString &filename)
 {
     TagLib::MPEG::File mpegfile(filename.toLocal8Bit().constData());
     TagLib::ID3v2::Tag* id3v2 = mpegfile.ID3v2Tag();
-    if (id3v2) {
+    if (id3v2 && !id3v2->isEmpty()) {
         readRegularTag(id3v2, m_data);
 
         int picnum = 0;
@@ -47,8 +47,10 @@ Tag::Tag(const QString &filename)
 
     } else {
         TagLib::FileRef fileref(filename.toLocal8Bit().constData());
+        if (fileref.isNull())
+            return;
         TagLib::Tag* tag = fileref.tag();
-        if (!tag)
+        if (!tag || tag->isEmpty())
             return;
 
         readRegularTag(tag, m_data);

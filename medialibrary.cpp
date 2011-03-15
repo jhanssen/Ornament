@@ -116,9 +116,9 @@ int MediaData::addArtist(const QString &name, bool* added)
 {
     QSqlQuery q(database);
 
-    q.prepare("select id from artists where artists.artist = ?");
+    q.prepare("select artists.id from artists where artists.artist = ?");
     q.bindValue(0, name);
-    if (q.exec()) {
+    if (q.exec() && q.next()) {
         if (added)
             *added = false;
         return q.value(0).toInt();
@@ -144,10 +144,10 @@ int MediaData::addAlbum(int artistid, const QString &name, bool* added)
 
     QSqlQuery q(database);
 
-    q.prepare("select id from albums where albums.album = ? and albums.artistid = ?");
+    q.prepare("select albums.id from albums where albums.album = ? and albums.artistid = ?");
     q.bindValue(0, name);
     q.bindValue(1, artistid);
-    if (q.exec()) {
+    if (q.exec() && q.next()) {
         if (added)
             *added = false;
         return q.value(0).toInt();
@@ -174,11 +174,11 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
 
     QSqlQuery q(database);
 
-    q.prepare("select id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ?");
+    q.prepare("select tracks.id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ?");
     q.bindValue(0, name);
     q.bindValue(1, albumid);
     q.bindValue(2, artistid);
-    if (q.exec()) {
+    if (q.exec() && q.next()) {
         if (added)
             *added = false;
         return q.value(0).toInt();
@@ -238,7 +238,7 @@ bool MediaData::updatePaths(MediaJob* job)
         if (!pushState(paths, QString()))
             return false;
 
-    MediaState& state = states.front();
+    MediaState& state = states.top();
     if (!state.files.isEmpty()) {
         QString file = QDir::cleanPath(state.path + QLatin1String("/") + takeFirst(state.files));
 
@@ -410,8 +410,7 @@ void MediaJob::updatePaths(const PathSet &paths)
 
 void MediaJob::updatePaths()
 {
-    s_data->updatePaths(this);
-    if (!s_data->paths.isEmpty())
+    if (s_data->updatePaths(this))
         QTimer::singleShot(0, this, SLOT(updatePaths()));
 }
 
