@@ -98,18 +98,13 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
 {
     QVariant ret;
 
-    QList<Artist> artists;
-    QList<Album> albums;
-    QList<Track> tracks;
-    if (!m_artist && !m_album)
-        artists = m_artists.values();
-    if (m_artist && !m_album)
-        albums = m_artist->albums.values();
-    else
-        tracks = m_album->tracks.values();
+    // ### This is not really optimal.
+    // ### Better to use a iterator over the hashs and keep track of the count?
 
     if (role == Qt::DisplayRole) {
         if (!m_artist) {
+            QList<Artist> artists = m_artists.values();
+
             if (index.row() < artists.size()) {
                 if (index.column() == 0)
                     ret = artists.at(index.row()).name;
@@ -118,6 +113,8 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
             }
             return ret;
         } else if (!m_album) {
+            QList<Album> albums = m_artist->albums.values();
+
             if (index.row() < albums.size()) {
                 if (index.column() == 0)
                     ret = albums.at(index.row()).name;
@@ -126,6 +123,8 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
             }
             return ret;
         } else {
+            QList<Track> tracks = m_album->tracks.values();
+
             if (index.row() < tracks.size()) {
                 if (index.column() == 0)
                     ret = tracks.at(index.row()).name;
