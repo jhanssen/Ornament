@@ -2,6 +2,7 @@
 #include "io.h"
 #include <QDebug>
 #include <QDir>
+#include <QTimer>
 #include <QStack>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -79,6 +80,9 @@ private:
     void createData();
 
     friend class MediaData;
+
+private slots:
+    void updatePaths();
 
 private:
     Type m_type;
@@ -390,11 +394,17 @@ void MediaJob::updatePaths(const PathSet &paths)
     bool shouldUpdate = s_data->paths.isEmpty();
     s_data->paths += paths;
 
-    if (shouldUpdate)
-        while (s_data->updatePaths(this))
-            ;
+    if (shouldUpdate) {
+        while (!s_data->paths.isEmpty())
+            QTimer::singleShot(0, this, SLOT(updatePaths()));
+    }
 
     emit updateFinished();
+}
+
+void MediaJob::updatePaths()
+{
+    s_data->updatePaths(this);
 }
 
 void MediaJob::requestTag(const QString &filename)
