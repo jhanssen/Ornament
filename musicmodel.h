@@ -1,18 +1,17 @@
 #ifndef MUSICMODEL_H
 #define MUSICMODEL_H
 
-#include <QSqlQueryModel>
-#include <QSqlDatabase>
+#include "medialibrary.h"
+#include <QAbstractTableModel>
+#include <QList>
 
-class MusicModel : public QSqlQueryModel
+class MusicModel : public QAbstractTableModel
 {
     Q_OBJECT
 
     Q_PROPERTY(int currentArtist READ currentArtist WRITE setCurrentArtist)
     Q_PROPERTY(int currentAlbum READ currentAlbum WRITE setCurrentAlbum)
 public:
-    enum Mode { Normal, Album, Artist };
-
     MusicModel(QObject *parent = 0);
 
     int currentArtist() const;
@@ -21,24 +20,24 @@ public:
     int currentAlbum() const;
     void setCurrentAlbum(int album);
 
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     QVariant data(const QModelIndex& index, int role) const;
+    int rowCount(const QModelIndex& parent) const;
+    int columnCount(const QModelIndex& parent) const;
 
-public slots:
-    QString filename(int track);
+    Q_INVOKABLE QString filename(int track);
 
-private:
-    void refresh(Mode mode = Normal);
-
-private:
-    void toggleNormal();
-    void toggleArtist();
-    void toggleAlbum();
+private slots:
+    void updateArtist(const Artist& artist);
 
 private:
-    int m_artist;
-    int m_album;
+    QVariant musicData(const QModelIndex& index, int role) const;
 
-    QSqlDatabase m_db;
+private:
+    Artist* m_artist;
+    Album* m_album;
+
+    QList<Artist> m_artists;
 };
 
 #endif // MUSICMODEL_H

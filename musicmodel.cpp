@@ -1,104 +1,150 @@
 #include "musicmodel.h"
-#include <QSqlError>
-#include <QSqlQuery>
 #include <QDebug>
 
-// create table artists (id integer primary key autoincrement, artist text not null);
-// create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id));
-// create table tracks (id integer primary key autoincrement, track text not null, filename text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id));
-
-MusicModel::MusicModel(QObject *parent) :
-    QSqlQueryModel(parent), m_artist(0), m_album(0)
+MusicModel::MusicModel(QObject *parent)
+    : QAbstractTableModel(parent), m_artist(0), m_album(0)
 {
-    m_db = QSqlDatabase::addDatabase(QLatin1String("QSQLITE"));
-    m_db.setDatabaseName("player.db");
-    m_db.open();
+    connect(MediaLibrary::instance(), SIGNAL(artist(Artist)), this, SLOT(updateArtist(Artist)));
+    MediaLibrary::instance()->readLibrary();
 
     QHash<int, QByteArray> roles;
     roles[Qt::UserRole + 1] = "musicitem";
     roles[Qt::UserRole + 2] = "musicid";
     setRoleNames(roles);
+}
 
-    toggleNormal();
+void MusicModel::updateArtist(const Artist &artist)
+{
+    int cur = m_artists.size();
+
+    if (m_album || m_artist) {
+        m_album = 0;
+        m_artist = 0;
+
+        reset();
+    }
+
+    emit beginInsertRows(QModelIndex(), cur, cur);
+    m_artists.append(artist);
+    emit endInsertRows();
 }
 
 int MusicModel::currentArtist() const
 {
-    return m_artist;
+    if (m_artist)
+        return m_artist->id;
+    return 0;
 }
 
 void MusicModel::setCurrentArtist(int artist)
 {
-    m_artist = artist;
+    Artist* oldartist = m_artist;
+    Album* oldalbum = m_album;
+
+    if (artist > 0) {
+        foreach(const Artist& a, m_artists) {
+            if (a.id == artist)
+                m_artist = const_cast<Artist*>(&a);
+        }
+    } else
+        m_artist = 0;
     m_album = 0;
 
-    if (m_artist == 0)
-        toggleNormal();
-    else
-        toggleArtist();
+    if (m_artist != oldartist || m_album != oldalbum)
+        reset();
 }
 
 int MusicModel::currentAlbum() const
 {
-    return m_album;
+    if (m_album)
+        return m_album->id;
+    return 0;
 }
 
 void MusicModel::setCurrentAlbum(int album)
 {
+    Album* oldalbum = m_album;
+
     if (m_artist == 0)
         return;
 
-    m_album = album;
+    if (album > 0) {
+        foreach(const Album& a, m_artist->albums) {
+            if (a.id == album)
+                m_album = const_cast<Album*>(&a);
+        }
+    } else
+        m_album = 0;
 
-    if (m_album == 0)
-        toggleArtist();
-    else
-        toggleAlbum();
+    if (m_album != oldalbum)
+        reset();
 }
 
-void MusicModel::toggleNormal()
+QVariant MusicModel::musicData(const QModelIndex &index, int role) const
 {
-    refresh(Normal);
+    QVariant ret;
+    if (role == Qt::DisplayRole) {
+        if (!m_artist) {
+            if (index.row() < m_artists.size()) {
+                if (index.column() == 0)
+                    ret = m_artists.at(index.row()).name;
+                else if (index.column() == 1)
+                    ret = m_artists.at(index.row()).id;
+            }
+            return ret;
+        } else if (!m_album) {
+            if (index.row() < m_artist->albums.size()) {
+                if (index.column() == 0)
+                    ret = m_artist->albums.at(index.row()).name;
+                else if (index.column() == 1)
+                    ret = m_artist->albums.at(index.row()).id;
+            }
+            return ret;
+        } else {
+            if (index.row() < m_album->tracks.size()) {
+                if (index.column() == 0)
+                    ret = m_album->tracks.at(index.row()).name;
+                else if (index.column() == 1)
+                    ret = m_album->tracks.at(index.row()).id;
+            }
+            return ret;
+         }
+    }
+    return ret;
 }
 
-void MusicModel::toggleArtist()
+int MusicModel::columnCount(const QModelIndex &parent) const
 {
-    refresh(Artist);
+    if (parent != QModelIndex())
+        return 0;
+    return 2;
 }
 
-void MusicModel::toggleAlbum()
+int MusicModel::rowCount(const QModelIndex &parent) const
 {
-    refresh(Album);
+    if (parent != QModelIndex())
+        return 0;
+    if (!m_artist)
+        return m_artists.size();
+    else if (!m_album)
+        return m_artist->albums.size();
+    return m_album->tracks.size();
 }
 
 QVariant MusicModel::data(const QModelIndex &index, int role) const
 {
     if (role < Qt::UserRole)
-        return QSqlQueryModel::data(index, role);
+        return musicData(index, role);
 
     int col = role - Qt::UserRole - 1;
     QModelIndex idx = this->index(index.row(), col);
 
-    return QSqlQueryModel::data(idx, Qt::DisplayRole);
+    return musicData(idx, Qt::DisplayRole);
 }
 
-void MusicModel::refresh(Mode mode)
+QVariant MusicModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    QString stmt;
-
-    switch (mode) {
-    case Normal:
-        stmt = QLatin1String("select artists.artist, artists.id as artist from artists");
-        break;
-    case Artist:
-        stmt = QLatin1String("select albums.album, albums.id from artists, albums where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.artistid = artists.id");
-        break;
-    case Album:
-        stmt = QLatin1String("select tracks.track, tracks.id from artists, albums, tracks where artists.id = ") + QString::number(m_artist) + QLatin1String(" and albums.id = ") + QString::number(m_album) + QLatin1String(" and albums.artistid = artists.id and tracks.albumid = albums.id");
-        break;
-    }
-
-    setQuery(stmt, m_db);
+    return QAbstractTableModel::headerData(section, orientation, role);
 }
 
 QString MusicModel::filename(int track)
@@ -106,11 +152,9 @@ QString MusicModel::filename(int track)
     if (m_artist == 0 || m_album == 0)
         return QString();
 
-    QString stmt = QLatin1String("select tracks.filename from artists, albums, tracks where artists.id = '") + QString::number(m_artist) + QLatin1String("' and albums.id = '") + QString::number(m_album) + QLatin1String("' and tracks.id = '") + QString::number(track) + QLatin1String("' and albums.artistid = artists.id and tracks.albumid = albums.id");
-
-    QSqlQuery query(m_db);
-    if (query.exec(stmt) && query.next()) {
-        return query.value(0).toString();
+    foreach(const Track& t, m_album->tracks) {
+        if (t.id == track)
+            return t.filename;
     }
 
     return QString();
