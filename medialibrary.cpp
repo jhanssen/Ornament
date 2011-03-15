@@ -139,6 +139,9 @@ int MediaData::addArtist(const QString &name, bool* added)
 
 int MediaData::addAlbum(int artistid, const QString &name, bool* added)
 {
+    if (artistid <= 0)
+        return artistid;
+
     QSqlQuery q(database);
 
     q.prepare("select id from albums where albums.album = ? and albums.artistid = ?");
@@ -166,6 +169,9 @@ int MediaData::addAlbum(int artistid, const QString &name, bool* added)
 
 int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, bool* added)
 {
+    if (artistid <= 0 || albumid <= 0)
+        return qMin(artistid, albumid);
+
     QSqlQuery q(database);
 
     q.prepare("select id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ?");
