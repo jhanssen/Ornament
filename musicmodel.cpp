@@ -34,7 +34,7 @@ void MusicModel::updateArtist(const Artist &artist)
         Artist& existingArtist = m_artists[id];
         // ### double lookup here due to foreach() only accepting const arguments. Fix?
         foreach(const Album& album, artist.albums) {
-            if (!artist.albums.contains(album.id)) {
+            if (!existingArtist.albums.contains(album.id)) {
                 existingArtist.albums[album.id] = album;
             } else {
                 existingArtist.albums[album.id].name = album.name;
