@@ -2,6 +2,7 @@
 #include "io.h"
 #include <QDebug>
 #include <QDir>
+#include <QStack>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 
@@ -10,11 +11,18 @@ Q_DECLARE_METATYPE(Artist)
 
 class MediaJob;
 
+struct MediaState
+{
+    QString path;
+    PathSet files;
+    PathSet dirs;
+};
+
 struct MediaData
 {
     MediaData();
 
-    void updatePath(MediaJob* job, const QString& path);
+    bool updatePaths(MediaJob* job);
     void readLibrary(MediaJob* job);
 
     void createTables();
@@ -22,8 +30,12 @@ struct MediaData
     int addAlbum(int artistid, const QString& name);
     int addTrack(int artistid, int albumid, const QString& name, const QString& filename);
 
+    bool pushState(PathSet& paths, const QString& prefix);
+
     static QMutex* mutex;
     QSqlDatabase database;
+    PathSet paths;
+    QStack<MediaState> states;
 };
 
 class MediaJob : public IOJob
@@ -157,32 +169,67 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
     return q.lastInsertId().toInt();
 }
 
-void MediaData::updatePath(MediaJob* job, const QString &path)
+static QString takeFirst(PathSet& paths)
 {
-    QDir dir(path);
-    QString cleanFile;
+    PathSet::Iterator it = paths.begin();
+    if (it == paths.end())
+        return QString();
+    QString path = *it;
+    paths.erase(it);
+    return path;
+}
 
+bool MediaData::pushState(PathSet &paths, const QString& prefix)
+{
+    QString path = takeFirst(paths);
+    if (path.isEmpty())
+        return false;
+
+    if (!prefix.isEmpty())
+        path = QDir::cleanPath(prefix + QLatin1String("/") + path);
+
+    QDir dir(path);
     QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot | QDir::Readable);
-    foreach(QString file, files) {
-        cleanFile = QDir::cleanPath(path + QLatin1String("/") + file);
+    QStringList dirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    MediaState state;
+    state.path = path;
+    state.files = PathSet::fromList(files);
+    state.dirs = PathSet::fromList(dirs);
+    states.push(state);
+
+    return true;
+}
+
+bool MediaData::updatePaths(MediaJob* job)
+{
+    if (states.isEmpty())
+        if (!pushState(paths, QString()))
+            return false;
+
+    MediaState& state = states.front();
+    if (!state.files.isEmpty()) {
+        QString file = QDir::cleanPath(state.path + QLatin1String("/") + takeFirst(state.files));
 
         Tag tag;
-        job->readTag(cleanFile, tag);
+        job->readTag(file, tag);
         if (tag.isValid()) {
             QMutexLocker locker(mutex);
             // ### cache artistid and albumid here? would that be safe?
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
-            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), cleanFile);
+            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file);
         }
 
-        QThread::yieldCurrentThread();
+        return true;
+    } else if (!state.dirs.isEmpty()) {
+        pushState(state.dirs, state.path);
+        return true;
+    } else {
+        states.pop();
     }
 
-    QStringList dirs = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    foreach(QString directory, dirs) {
-        updatePath(job, QDir::cleanPath(path + "/" + directory));
-    }
+    return true;
 }
 
 void MediaData::readLibrary(MediaJob* job)
@@ -305,10 +352,18 @@ void MediaJob::updatePaths(const PathSet &paths)
 {
     emit updateStarted();
 
+    bool shouldUpdate = false;
+
     createData();
-    foreach(QString path, paths) {
-        s_data->updatePath(this, path);
+    {
+        QMutexLocker locker(MediaData::mutex);
+        shouldUpdate = s_data->paths.isEmpty();
+        s_data->paths += paths;
     }
+
+    if (shouldUpdate)
+        while (s_data->updatePaths(this))
+            ;
 
     emit updateFinished();
 }
