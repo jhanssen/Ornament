@@ -395,7 +395,7 @@ void MediaJob::updatePaths(const PathSet &paths)
     s_data->paths += paths;
 
     if (shouldUpdate) {
-        while (!s_data->paths.isEmpty())
+        if (!s_data->paths.isEmpty())
             QTimer::singleShot(0, this, SLOT(updatePaths()));
     }
 
@@ -405,6 +405,8 @@ void MediaJob::updatePaths(const PathSet &paths)
 void MediaJob::updatePaths()
 {
     s_data->updatePaths(this);
+    if (!s_data->paths.isEmpty())
+        QTimer::singleShot(0, this, SLOT(updatePaths()));
 }
 
 void MediaJob::requestTag(const QString &filename)
