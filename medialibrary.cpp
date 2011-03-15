@@ -26,9 +26,9 @@ struct MediaData
     void readLibrary(MediaJob* job);
 
     void createTables();
-    int addArtist(const QString& name);
-    int addAlbum(int artistid, const QString& name);
-    int addTrack(int artistid, int albumid, const QString& name, const QString& filename);
+    int addArtist(const QString& name, bool* added = 0);
+    int addAlbum(int artistid, const QString& name, bool* added = 0);
+    int addTrack(int artistid, int albumid, const QString& name, const QString& filename, bool* added = 0);
 
     bool pushState(PathSet& paths, const QString& prefix);
 
@@ -111,43 +111,59 @@ void MediaData::createTables()
     q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
 }
 
-int MediaData::addArtist(const QString &name)
+int MediaData::addArtist(const QString &name, bool* added)
 {
     QSqlQuery q(database);
 
     q.prepare("select id from artists where artists.artist = ?");
     q.bindValue(0, name);
-    if (q.exec())
+    if (q.exec()) {
+        if (added)
+            *added = false;
         return q.value(0).toInt();
+    }
 
     q.prepare("insert into artists (artist) values (?)");
     q.bindValue(0, name);
-    if (!q.exec())
+    if (!q.exec()) {
+        if (added)
+            *added = false;
         return -1;
+    }
 
+    if (added)
+        *added = true;
     return q.lastInsertId().toInt();
 }
 
-int MediaData::addAlbum(int artistid, const QString &name)
+int MediaData::addAlbum(int artistid, const QString &name, bool* added)
 {
     QSqlQuery q(database);
 
     q.prepare("select id from albums where albums.album = ? and albums.artistid = ?");
     q.bindValue(0, name);
     q.bindValue(1, artistid);
-    if (q.exec())
+    if (q.exec()) {
+        if (added)
+            *added = false;
         return q.value(0).toInt();
+    }
 
     q.prepare("insert into albums (album, artistid) values (?, ?)");
     q.bindValue(0, name);
     q.bindValue(1, artistid);
-    if (!q.exec())
+    if (!q.exec()) {
+        if (added)
+            *added = false;
         return -1;
+    }
 
+    if (added)
+        *added = true;
     return q.lastInsertId().toInt();
 }
 
-int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename)
+int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, bool* added)
 {
     QSqlQuery q(database);
 
@@ -155,17 +171,25 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
     q.bindValue(0, name);
     q.bindValue(1, albumid);
     q.bindValue(2, artistid);
-    if (q.exec())
+    if (q.exec()) {
+        if (added)
+            *added = false;
         return q.value(0).toInt();
+    }
 
     q.prepare("insert into tracks (track, filename, artistid, albumid) values (?, ?, ?, ?)");
     q.bindValue(0, name);
     q.bindValue(1, filename);
     q.bindValue(2, artistid);
     q.bindValue(3, albumid);
-    if (!q.exec())
+    if (!q.exec()) {
+        if (added)
+            *added = false;
         return -1;
+    }
 
+    if (added)
+        *added = true;
     return q.lastInsertId().toInt();
 }
 
@@ -216,9 +240,30 @@ bool MediaData::updatePaths(MediaJob* job)
         if (tag.isValid()) {
             QMutexLocker locker(mutex);
             // ### cache artistid and albumid here? would that be safe?
+            bool added;
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
-            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file);
+            int trackid = addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file, &added);
+
+            if (added) {
+                Artist artist;
+                artist.id = artistid;
+                artist.name = tag.data(QLatin1String("artist")).toString();
+
+                Album album;
+                album.id = albumid;
+                album.name = tag.data(QLatin1String("album")).toString();
+
+                Track track;
+                track.id = trackid;
+                track.name = tag.data(QLatin1String("title")).toString();
+                track.filename = file;
+
+                album.tracks[trackid] = track;
+                artist.albums[albumid] = album;
+
+                emit job->artist(artist);
+            }
         }
 
         return true;

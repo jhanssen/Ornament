@@ -24,9 +24,23 @@ void MusicModel::updateArtist(const Artist &artist)
         reset();
     }
 
-    emit beginInsertRows(QModelIndex(), cur, cur);
-    m_artists[artist.id] = artist;
-    emit endInsertRows();
+    if (!m_artists.contains(artist.id)) {
+        emit beginInsertRows(QModelIndex(), cur, cur);
+        m_artists[artist.id] = artist;
+        emit endInsertRows();
+    } else {
+        Artist& artist = m_artists[artist.id];
+        // ### double lookup here due to foreach() only accepting const arguments. Fix?
+        foreach(const Album& album, artist.albums) {
+            if (!artist.albums.contains(album.id)) {
+                artist.albums[album.id] = album;
+            } else {
+                foreach(const Track& track, album.tracks) {
+                    artist.albums[album.id].tracks[track.id] = track;
+                }
+            }
+        }
+    }
 }
 
 int MusicModel::currentArtist() const
