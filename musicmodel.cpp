@@ -93,7 +93,7 @@ void MusicModel::setCurrentAlbum(int album)
         if (m_artist->albums.contains(album))
             m_album = &(m_artist->albums[album]);
         else
-            m_artist = 0;
+            m_album = 0;
     } else
         m_album = 0;
 
