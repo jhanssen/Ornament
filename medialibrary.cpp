@@ -32,7 +32,6 @@ struct MediaData
 
     bool pushState(PathSet& paths, const QString& prefix);
 
-    static QMutex* mutex;
     QSqlDatabase database;
     PathSet paths;
     QStack<MediaState> states;
@@ -87,8 +86,6 @@ private:
 
     static MediaData* s_data;
 };
-
-QMutex* MediaData::mutex = 0;
 
 MediaData::MediaData()
 {
@@ -238,8 +235,6 @@ bool MediaData::updatePaths(MediaJob* job)
         Tag tag;
         job->readTag(file, tag);
         if (tag.isValid()) {
-            QMutexLocker locker(mutex);
-            // ### cache artistid and albumid here? would that be safe?
             bool added;
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
@@ -279,8 +274,6 @@ bool MediaData::updatePaths(MediaJob* job)
 
 void MediaData::readLibrary(MediaJob* job)
 {
-    QMutexLocker locker(mutex);
-
     QSqlQuery artistQuery, albumQuery, trackQuery;
 
     artistQuery.exec("select artists.id, artists.artist from artists");
@@ -321,12 +314,8 @@ void MediaData::readLibrary(MediaJob* job)
             artistData.albums[albumData.id] = albumData;
         }
 
-        locker.unlock();
-
         emit job->artist(artistData);
         QThread::yieldCurrentThread();
-
-        locker.relock();
     }
 }
 
@@ -339,7 +328,6 @@ MediaJob::MediaJob(QObject* parent)
 
 void MediaJob::createData()
 {
-    QMutexLocker locker(MediaData::mutex);
     if (!s_data)
         s_data = new MediaData;
 }
@@ -397,14 +385,10 @@ void MediaJob::updatePaths(const PathSet &paths)
 {
     emit updateStarted();
 
-    bool shouldUpdate = false;
-
     createData();
-    {
-        QMutexLocker locker(MediaData::mutex);
-        shouldUpdate = s_data->paths.isEmpty();
-        s_data->paths += paths;
-    }
+
+    bool shouldUpdate = s_data->paths.isEmpty();
+    s_data->paths += paths;
 
     if (shouldUpdate)
         while (s_data->updatePaths(this))
@@ -444,8 +428,6 @@ MediaLibrary* MediaLibrary::s_inst = 0;
 MediaLibrary::MediaLibrary(QObject *parent) :
     QObject(parent)
 {
-    MediaData::mutex = new QMutex;
-
     IO::instance()->registerJob<MediaJob>();
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
 
