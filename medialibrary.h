@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QStringList>
 #include <QSet>
+#include <QHash>
 
 #include "tag.h"
 
@@ -18,7 +19,7 @@ struct Artist
     int id;
     QString name;
 
-    QList<Album> albums;
+    QHash<int, Album> albums;
 };
 
 struct Album
@@ -26,7 +27,7 @@ struct Album
     int id;
     QString name;
 
-    QList<Track> tracks;
+    QHash<int, Track> tracks;
 };
 
 struct Track

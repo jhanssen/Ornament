@@ -37,7 +37,7 @@ private:
     Artist* m_artist;
     Album* m_album;
 
-    QList<Artist> m_artists;
+    QHash<int, Artist> m_artists;
 };
 
 #endif // MUSICMODEL_H

@@ -270,10 +270,10 @@ void MediaData::readLibrary(MediaJob* job)
                 trackData.name = trackQuery.value(1).toString();
                 trackData.filename = trackQuery.value(2).toString();
 
-                albumData.tracks.append(trackData);
+                albumData.tracks[trackData.id] = trackData;
             }
 
-            artistData.albums.append(albumData);
+            artistData.albums[albumData.id] = albumData;
         }
 
         locker.unlock();

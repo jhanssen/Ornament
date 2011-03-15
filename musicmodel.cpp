@@ -25,7 +25,7 @@ void MusicModel::updateArtist(const Artist &artist)
     }
 
     emit beginInsertRows(QModelIndex(), cur, cur);
-    m_artists.append(artist);
+    m_artists[artist.id] = artist;
     emit endInsertRows();
 }
 
@@ -42,10 +42,10 @@ void MusicModel::setCurrentArtist(int artist)
     Album* oldalbum = m_album;
 
     if (artist > 0) {
-        foreach(const Artist& a, m_artists) {
-            if (a.id == artist)
-                m_artist = const_cast<Artist*>(&a);
-        }
+        if (m_artists.contains(artist))
+            m_artist = &m_artists[artist];
+        else
+            m_artist = 0;
     } else
         m_artist = 0;
     m_album = 0;
@@ -69,10 +69,10 @@ void MusicModel::setCurrentAlbum(int album)
         return;
 
     if (album > 0) {
-        foreach(const Album& a, m_artist->albums) {
-            if (a.id == album)
-                m_album = const_cast<Album*>(&a);
-        }
+        if (m_artist->albums.contains(album))
+            m_album = &(m_artist->albums[album]);
+        else
+            m_artist = 0;
     } else
         m_album = 0;
 
@@ -83,29 +83,40 @@ void MusicModel::setCurrentAlbum(int album)
 QVariant MusicModel::musicData(const QModelIndex &index, int role) const
 {
     QVariant ret;
+
+    QList<Artist> artists;
+    QList<Album> albums;
+    QList<Track> tracks;
+    if (!m_artist && !m_album)
+        artists = m_artists.values();
+    if (m_artist && !m_album)
+        albums = m_artist->albums.values();
+    else
+        tracks = m_album->tracks.values();
+
     if (role == Qt::DisplayRole) {
         if (!m_artist) {
-            if (index.row() < m_artists.size()) {
+            if (index.row() < artists.size()) {
                 if (index.column() == 0)
-                    ret = m_artists.at(index.row()).name;
+                    ret = artists.at(index.row()).name;
                 else if (index.column() == 1)
-                    ret = m_artists.at(index.row()).id;
+                    ret = artists.at(index.row()).id;
             }
             return ret;
         } else if (!m_album) {
-            if (index.row() < m_artist->albums.size()) {
+            if (index.row() < albums.size()) {
                 if (index.column() == 0)
-                    ret = m_artist->albums.at(index.row()).name;
+                    ret = albums.at(index.row()).name;
                 else if (index.column() == 1)
-                    ret = m_artist->albums.at(index.row()).id;
+                    ret = albums.at(index.row()).id;
             }
             return ret;
         } else {
-            if (index.row() < m_album->tracks.size()) {
+            if (index.row() < tracks.size()) {
                 if (index.column() == 0)
-                    ret = m_album->tracks.at(index.row()).name;
+                    ret = tracks.at(index.row()).name;
                 else if (index.column() == 1)
-                    ret = m_album->tracks.at(index.row()).id;
+                    ret = tracks.at(index.row()).id;
             }
             return ret;
          }
@@ -152,10 +163,5 @@ QString MusicModel::filename(int track)
     if (m_artist == 0 || m_album == 0)
         return QString();
 
-    foreach(const Track& t, m_album->tracks) {
-        if (t.id == track)
-            return t.filename;
-    }
-
-    return QString();
+    return m_album->tracks.value(track).filename;
 }
