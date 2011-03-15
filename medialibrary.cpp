@@ -173,7 +173,7 @@ void MediaData::updatePath(MediaJob* job, const QString &path)
             // ### cache artistid and albumid here? would that be safe?
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
-            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), path);
+            addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), cleanFile);
         }
 
         QThread::yieldCurrentThread();
