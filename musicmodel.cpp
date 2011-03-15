@@ -99,7 +99,7 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
     QVariant ret;
 
     // ### This is not really optimal.
-    // ### Better to use a iterator over the hashs and keep track of the count?
+    // ### Better to use keep both a hashmap and a list and keep them synchronized probably
 
     if (role == Qt::DisplayRole) {
         if (!m_artist) {
