@@ -41,7 +41,9 @@ Rectangle {
                 playButton.image = "icons/pause.svg"
             else if (state == AudioPlayer.Done) {
                 // play next file
-                console.log("play next?")
+                var cur = musicModel.positionFromFilename(audioPlayer.filename)
+                if (cur !== -1 && cur + 1 < musicModel.trackCount())
+                    playFile(musicModel.filenameByPosition(cur + 1))
             } else
                 playButton.image = "icons/play.svg"
         }
@@ -62,7 +64,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 50
 
-        Button { id: playButton; image: "icons/play.svg"; onClicked: { pauseOrPlayFile(musicModel.firstFilename()) } }
+        Button { id: playButton; image: "icons/play.svg"; onClicked: { pauseOrPlayFile(musicModel.filenameByPosition(0)) } }
         Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
         Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom }
         Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom }
@@ -129,7 +131,7 @@ Rectangle {
                             else if (musicModel.currentAlbum === 0)
                                 musicModel.currentAlbum = musicid
                             else {
-                                playFile(musicModel.filename(musicid))
+                                playFile(musicModel.filenameById(musicid))
                             }
                         }
                     }

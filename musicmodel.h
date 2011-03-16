@@ -5,6 +5,8 @@
 #include <QAbstractTableModel>
 #include <QList>
 
+struct MusicModelTrack;
+
 class MusicModel : public QAbstractTableModel
 {
     Q_OBJECT
@@ -27,6 +29,8 @@ public:
 
     Q_INVOKABLE QString filenameById(int track) const;
     Q_INVOKABLE QString filenameByPosition(int position) const;
+    Q_INVOKABLE int positionFromFilename(const QString& filename) const;
+    Q_INVOKABLE int trackCount() const;
 
 private slots:
     void updateArtist(const Artist& artist);
@@ -34,11 +38,17 @@ private slots:
 private:
     QVariant musicData(const QModelIndex& index, int role) const;
 
+    void buildTracks();
+
 private:
     Artist* m_artist;
     Album* m_album;
 
     QHash<int, Artist> m_artists;
+
+    QHash<int, MusicModelTrack*> m_tracksId;
+    QHash<QString, MusicModelTrack*> m_tracksFile;
+    QList<MusicModelTrack*> m_tracksPos;
 };
 
 #endif // MUSICMODEL_H

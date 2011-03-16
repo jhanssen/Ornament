@@ -1,6 +1,14 @@
 #include "musicmodel.h"
 #include <QDebug>
 
+struct MusicModelTrack
+{
+    int id;
+    int pos;
+    QString track;
+    QString filename;
+};
+
 MusicModel::MusicModel(QObject *parent)
     : QAbstractTableModel(parent), m_artist(0), m_album(0)
 {
@@ -20,6 +28,11 @@ void MusicModel::updateArtist(const Artist &artist)
     if (m_album || m_artist) {
         m_album = 0;
         m_artist = 0;
+
+        qDeleteAll(m_tracksPos);
+        m_tracksPos.clear();
+        m_tracksId.clear();
+        m_tracksFile.clear();
 
         reset();
     }
@@ -71,6 +84,11 @@ void MusicModel::setCurrentArtist(int artist)
         m_artist = 0;
     m_album = 0;
 
+    qDeleteAll(m_tracksPos);
+    m_tracksPos.clear();
+    m_tracksId.clear();
+    m_tracksFile.clear();
+
     if (m_artist != oldartist || m_album != oldalbum)
         reset();
 }
@@ -90,15 +108,53 @@ void MusicModel::setCurrentAlbum(int album)
         return;
 
     if (album > 0) {
-        if (m_artist->albums.contains(album))
+        if (m_artist->albums.contains(album)) {
             m_album = &(m_artist->albums[album]);
-        else
+
+            buildTracks();
+        } else {
             m_album = 0;
-    } else
+
+            qDeleteAll(m_tracksPos);
+            m_tracksPos.clear();
+            m_tracksId.clear();
+            m_tracksFile.clear();
+        }
+    } else {
         m_album = 0;
+
+        qDeleteAll(m_tracksPos);
+        m_tracksPos.clear();
+        m_tracksId.clear();
+        m_tracksFile.clear();
+    }
 
     if (m_album != oldalbum)
         reset();
+}
+
+void MusicModel::buildTracks()
+{
+    if (!m_artist || !m_album)
+        return;
+
+    int pos = 0;
+    QHash<int, Track>::ConstIterator it = m_album->tracks.begin();
+    QHash<int, Track>::ConstIterator itend = m_album->tracks.end();
+    while (it != itend) {
+        MusicModelTrack* track = new MusicModelTrack;
+        track->pos = pos;
+        track->id = it.value().id;
+        track->track = it.value().name;
+        track->filename = it.value().filename;
+
+        m_tracksPos.append(track);
+        m_tracksId[track->id] = track;
+        m_tracksFile[track->filename] = track;
+
+        ++it;
+        ++pos;
+    }
 }
 
 QVariant MusicModel::musicData(const QModelIndex &index, int role) const
@@ -130,13 +186,11 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
             }
             return ret;
         } else {
-            QList<Track> tracks = m_album->tracks.values();
-
-            if (index.row() < tracks.size()) {
+            if (index.row() < m_tracksPos.size()) {
                 if (index.column() == 0)
-                    ret = tracks.at(index.row()).name;
+                    ret = m_tracksPos.at(index.row())->track;
                 else if (index.column() == 1)
-                    ret = tracks.at(index.row()).id;
+                    ret = m_tracksPos.at(index.row())->id;
             }
             return ret;
          }
@@ -159,7 +213,7 @@ int MusicModel::rowCount(const QModelIndex &parent) const
         return m_artists.size();
     else if (!m_album)
         return m_artist->albums.size();
-    return m_album->tracks.size();
+    return m_tracksPos.size();
 }
 
 QVariant MusicModel::data(const QModelIndex &index, int role) const
@@ -183,24 +237,27 @@ QString MusicModel::filenameById(int id) const
     if (m_artist == 0 || m_album == 0)
         return QString();
 
-    return m_album->tracks.value(id).filename;
+    return m_tracksId.value(id)->filename;
 }
 
 QString MusicModel::filenameByPosition(int position) const
 {
-    // ### not optimal, the data structure should possibly be better designed
-
     if (m_artist == 0 || m_album == 0)
         return QString();
 
-    int cur = 0;
-    QHash<int, Track>::ConstIterator first = m_album->tracks.begin();
-    while (first != m_album->tracks.end()) {
-        if (cur == position)
-            return first.value().filename;
-        ++it;
-        ++cur;
-    }
+    return m_tracksPos.at(position)->filename;
+}
 
-    return QString();
+int MusicModel::positionFromFilename(const QString &filename) const
+{
+    QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
+    if (it == m_tracksFile.end())
+        return -1;
+
+    return it.value()->pos;
+}
+
+int MusicModel::trackCount() const
+{
+    return m_tracksPos.size();
 }
