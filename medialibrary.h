@@ -44,6 +44,8 @@ public:
     static MediaLibrary* instance();
     static void init(QObject* parent = 0);
 
+    ~MediaLibrary();
+
     QStringList paths();
     void setPaths(const QStringList& paths);
     void addPath(const QString& path);

@@ -59,6 +59,8 @@ public:
 
     void start();
 
+    static void deinit();
+
 signals:
     void tag(const Tag& tag);
     void tagWritten(const QString& filename);
@@ -331,6 +333,11 @@ void MediaData::readLibrary(MediaJob* job)
 
 MediaData* MediaJob::s_data = 0;
 
+void MediaJob::deinit()
+{
+    delete s_data;
+}
+
 MediaJob::MediaJob(QObject* parent)
     : IOJob(parent), m_type(None)
 {
@@ -456,6 +463,11 @@ MediaLibrary::MediaLibrary(QObject *parent) :
     qRegisterMetaType<PathSet>("PathSet");
     qRegisterMetaType<Tag>("Tag");
     qRegisterMetaType<Artist>("Artist");
+}
+
+MediaLibrary::~MediaLibrary()
+{
+    MediaJob::deinit();
 }
 
 MediaLibrary* MediaLibrary::instance()

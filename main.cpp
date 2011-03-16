@@ -26,5 +26,9 @@ int main(int argc, char** argv)
     QDeclarativeView view(QUrl::fromLocalFile("player.qml"));
     view.show();
 
-    return app.exec();
+    int r = app.exec();
+
+    delete MediaLibrary::instance();
+
+    return r;
 }
