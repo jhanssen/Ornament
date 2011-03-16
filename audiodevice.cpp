@@ -40,6 +40,7 @@ void AudioDevice::createOutput()
     foreach(QAudioDeviceInfo dev, devices) {
         if (m_device == dev.deviceName()) {
             m_output = new QAudioOutput(dev, dev.preferredFormat());
+            m_output->setBufferSize(16384 * 4);
             return;
         }
     }
