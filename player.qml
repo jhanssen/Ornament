@@ -15,6 +15,15 @@ Rectangle {
         audioPlayer.play()
     }
 
+    function pauseOrPlayFile(filename) {
+        if (audioPlayer.state === AudioPlayer.Playing)
+            audioPlayer.pause()
+        else if (audioPlayer.state === AudioPlayer.Paused)
+            audioPlayer.play()
+        else // AudioPlayer.Stopped or AudioPlayer.Done
+            playFile(filename)
+    }
+
     width: 200
     height: 200
 
@@ -26,6 +35,16 @@ Rectangle {
 
     AudioPlayer {
         id: audioPlayer
+
+        onStateChanged: {
+            if (state == AudioPlayer.Playing)
+                playButton.image = "icons/pause.svg"
+            else if (state == AudioPlayer.Done) {
+                // play next file
+                console.log("play next?")
+            } else
+                playButton.image = "icons/play.svg"
+        }
     }
 
     MusicModel {
@@ -43,8 +62,8 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 50
 
-        Button { id: playButton; image: "icons/play.svg"; onClicked: { playFile(musicModel.firstFilename()) } }
-        Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom }
+        Button { id: playButton; image: "icons/play.svg"; onClicked: { pauseOrPlayFile(musicModel.firstFilename()) } }
+        Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
         Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom }
         Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom }
     }
@@ -61,6 +80,18 @@ Rectangle {
         model: musicModel
         highlight: Rectangle { color: "lightsteelblue"; radius : 2 }
         focus: true
+
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.RightButton
+
+            onClicked: {
+                if (musicModel.currentAlbum !== 0)
+                    musicModel.currentAlbum = 0
+                else if (musicModel.currentArtist !== 0)
+                    musicModel.currentArtist = 0
+            }
+        }
 
         delegate: Item {
             id: delegate

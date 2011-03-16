@@ -41,8 +41,3 @@ Codecs* Codecs::instance()
 {
     return s_inst;
 }
-
-Codec::Codec(QObject *parent)
-    : QObject(parent)
-{
-}

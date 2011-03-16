@@ -9,6 +9,8 @@
 AudioPlayer::AudioPlayer(QObject *parent) :
     QObject(parent), m_state(Stopped), m_audio(0), m_codec(0)
 {
+    qRegisterMetaType<State>("State");
+
     connect(MediaLibrary::instance(), SIGNAL(tag(Tag)), this, SLOT(tagReady(Tag)));
 }
 
@@ -25,6 +27,11 @@ void AudioPlayer::setFilename(const QString &filename)
 AudioDevice* AudioPlayer::audioDevice() const
 {
     return m_audio;
+}
+
+AudioPlayer::State AudioPlayer::state() const
+{
+    return m_state;
 }
 
 void AudioPlayer::setAudioDevice(AudioDevice *device)
@@ -60,12 +67,15 @@ void AudioPlayer::outputStateChanged(QAudio::State state)
         m_state = Paused;
         break;
     case QAudio::StoppedState:
-        m_state = Stopped;
+        if (m_codec->isOpen())
+            m_state = Stopped;
+        else
+            m_state = Done;
         break;
     }
 
     if (m_state != oldstate)
-        emit stateChanged(m_state);
+        emit stateChanged();
 }
 
 void AudioPlayer::play()
@@ -76,7 +86,7 @@ void AudioPlayer::play()
     if (m_state == Playing)
         stop();
 
-    if (m_state == Stopped || m_state == Playing) {
+    if (m_state == Stopped || m_state == Done || m_state == Playing) {
         delete m_codec;
         m_codec = 0;
 

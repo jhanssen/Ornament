@@ -13,9 +13,10 @@ class AudioPlayer : public QObject
 
     Q_PROPERTY(QString filename READ filename WRITE setFilename)
     Q_PROPERTY(AudioDevice* audioDevice READ audioDevice WRITE setAudioDevice)
+    Q_PROPERTY(State state READ state)
     Q_ENUMS(State)
 public:
-    enum State { Stopped, Paused, Playing };
+    enum State { Stopped, Paused, Playing, Done };
 
     AudioPlayer(QObject *parent = 0);
 
@@ -25,8 +26,11 @@ public:
     AudioDevice* audioDevice() const;
     void setAudioDevice(AudioDevice* device);
 
+    State state() const;
+
 signals:
-    void stateChanged(State state);
+    // ### fix this once QML accepts enums as arguments in signals
+    void stateChanged();
 
 public slots:
     void play();
