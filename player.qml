@@ -24,6 +24,18 @@ Rectangle {
             playFile(filename)
     }
 
+    function playNext() {
+        var cur = musicModel.positionFromFilename(audioPlayer.filename)
+        if (cur !== -1 && cur + 1 < musicModel.trackCount())
+            playFile(musicModel.filenameByPosition(cur + 1))
+    }
+
+    function playPrevious() {
+        var cur = musicModel.positionFromFilename(audioPlayer.filename)
+        if (cur > 0)
+            playFile(musicModel.filenameByPosition(cur - 1))
+    }
+
     width: 200
     height: 200
 
@@ -40,10 +52,7 @@ Rectangle {
             if (state == AudioPlayer.Playing)
                 playButton.image = "icons/pause.svg"
             else if (state == AudioPlayer.Done) {
-                // play next file
-                var cur = musicModel.positionFromFilename(audioPlayer.filename)
-                if (cur !== -1 && cur + 1 < musicModel.trackCount())
-                    playFile(musicModel.filenameByPosition(cur + 1))
+                playNext()
             } else
                 playButton.image = "icons/play.svg"
         }
@@ -66,8 +75,8 @@ Rectangle {
 
         Button { id: playButton; image: "icons/play.svg"; onClicked: { pauseOrPlayFile(musicModel.filenameByPosition(0)) } }
         Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
-        Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom }
-        Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom }
+        Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom; onClicked: { playPrevious() } }
+        Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom; onClicked: { playNext() } }
     }
 
     ListView {
@@ -80,7 +89,7 @@ Rectangle {
         anchors.bottom: parent.bottom
 
         model: musicModel
-        highlight: Rectangle { color: "lightsteelblue"; radius : 2 }
+        highlight: Rectangle { color: "lightsteelblue"; radius: 2 }
         focus: true
 
         MouseArea {
