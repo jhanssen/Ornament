@@ -178,10 +178,22 @@ QVariant MusicModel::headerData(int section, Qt::Orientation orientation, int ro
     return QAbstractTableModel::headerData(section, orientation, role);
 }
 
-QString MusicModel::filename(int track)
+QString MusicModel::filename(int track) const
 {
     if (m_artist == 0 || m_album == 0)
         return QString();
 
     return m_album->tracks.value(track).filename;
+}
+
+QString MusicModel::firstFilename() const
+{
+    if (m_artist == 0 || m_album == 0)
+        return QString();
+
+    QHash<int, Track>::ConstIterator first = m_album->tracks.begin();
+    if (first == m_album->tracks.end())
+        return QString();
+
+    return first.value().filename;
 }
