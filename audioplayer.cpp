@@ -41,10 +41,6 @@ void AudioPlayer::setAudioDevice(AudioDevice *device)
 
     delete m_audio;
     m_audio = device;
-
-    if (m_audio && m_audio->output())
-        connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
-                this, SLOT(outputStateChanged(QAudio::State)));
 }
 
 void AudioPlayer::tagReady(const Tag &tag)
@@ -80,7 +76,7 @@ void AudioPlayer::outputStateChanged(QAudio::State state)
 
 void AudioPlayer::play()
 {
-    if (!m_audio || !m_audio->output())
+    if (!m_audio)
         return;
 
     if (m_state == Playing)
@@ -107,6 +103,10 @@ void AudioPlayer::play()
 
             return;
         }
+
+        m_audio->createOutput();
+        connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
+                this, SLOT(outputStateChanged(QAudio::State)));
 
         codec->init(m_audio->output()->format());
 

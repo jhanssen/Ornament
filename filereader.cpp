@@ -91,9 +91,11 @@ void FileReaderDevice::ioError(const QString &message)
 
 void FileReaderDevice::readerError(const QString &message)
 {
-    int p = m_pending.front();
-    m_pending.pop_front();
-    m_pendingTotal -= p;
+    if (!m_pending.isEmpty()) {
+        int p = m_pending.front();
+        m_pending.pop_front();
+        m_pendingTotal -= p;
+    }
 
     qDebug() << "readerError" << message;
 
@@ -201,9 +203,11 @@ void FileReaderDevice::jobFinished(IOJob *job)
 
 void FileReaderDevice::readerData(QByteArray *data)
 {
-    int p = m_pending.front();
-    m_pending.pop_front();
-    m_pendingTotal -= p;
+    if (!m_pending.isEmpty()) {
+        int p = m_pending.front();
+        m_pending.pop_front();
+        m_pendingTotal -= p;
+    }
 
     qDebug() << "readerData, m_p is now" << m_pendingTotal;
 

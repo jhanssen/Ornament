@@ -19,6 +19,7 @@ public:
     bool setDevice(const QString& device);
 
     QAudioOutput* output() const;
+    void createOutput();
 
 signals:
     void devicesChanged();
