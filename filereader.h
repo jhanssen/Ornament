@@ -60,12 +60,13 @@ protected:
     qint64 writeData(const char *data, qint64 len);
 
 private slots:
-    void jobStarted();
+    void ioError(const QString& message);
     void jobCreated(IOJob* job);
     void jobFinished(IOJob* job);
+
+    void readerStarted();
     void readerData(QByteArray* data);
     void readerAtEnd();
-    void ioError(const QString& message);
     void readerError(const QString& message);
 
 private:

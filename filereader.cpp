@@ -89,19 +89,6 @@ void FileReaderDevice::ioError(const QString &message)
     close();
 }
 
-void FileReaderDevice::readerError(const QString &message)
-{
-    if (!m_pending.isEmpty()) {
-        int p = m_pending.front();
-        m_pending.pop_front();
-        m_pendingTotal -= p;
-    }
-
-    qDebug() << "readerError" << message;
-
-    m_atend = true;
-}
-
 void FileReaderDevice::setFilename(const QString &filename)
 {
     m_filename = filename;
@@ -124,10 +111,6 @@ void FileReaderDevice::close()
 
     m_buffer.clear();
     if (m_reader) {
-        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
-        disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
-        disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-        disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
         m_reader->stop();
         m_jobid = 0;
         m_reader = 0;
@@ -148,10 +131,6 @@ bool FileReaderDevice::open(OpenMode mode)
 
     m_buffer.clear();
     if (m_reader) {
-        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
-        disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
-        disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-        disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
         m_reader->stop();
         m_reader = 0;
         m_pending.clear();
@@ -172,22 +151,12 @@ void FileReaderDevice::jobCreated(IOJob *job)
         if (!m_reader)
             return;
 
-        connect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
+        connect(m_reader, SIGNAL(started()), this, SLOT(readerStarted()));
         connect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         connect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         connect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
 
         m_reader->start();
-    }
-}
-
-void FileReaderDevice::jobStarted()
-{
-    int bsz = m_buffer.size();
-    while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX) {
-        m_reader->read(FILEREADERDEVICE_READ);
-        m_pendingTotal += FILEREADERDEVICE_READ;
-        m_pending.push_back(FILEREADERDEVICE_READ);
     }
 }
 
@@ -201,8 +170,42 @@ void FileReaderDevice::jobFinished(IOJob *job)
     }
 }
 
+void FileReaderDevice::readerStarted()
+{
+    if (sender() != m_reader)
+        return;
+
+    int bsz = m_buffer.size();
+    while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX) {
+        m_reader->read(FILEREADERDEVICE_READ);
+        m_pendingTotal += FILEREADERDEVICE_READ;
+        m_pending.push_back(FILEREADERDEVICE_READ);
+    }
+}
+
+void FileReaderDevice::readerError(const QString &message)
+{
+    if (sender() != m_reader)
+        return;
+
+    if (!m_pending.isEmpty()) {
+        int p = m_pending.front();
+        m_pending.pop_front();
+        m_pendingTotal -= p;
+    }
+
+    qDebug() << "readerError" << message;
+
+    m_atend = true;
+}
+
 void FileReaderDevice::readerData(QByteArray *data)
 {
+    if (sender() != m_reader) {
+        delete data;
+        return;
+    }
+
     if (!m_pending.isEmpty()) {
         int p = m_pending.front();
         m_pending.pop_front();
@@ -216,6 +219,9 @@ void FileReaderDevice::readerData(QByteArray *data)
 
 void FileReaderDevice::readerAtEnd()
 {
+    if (sender() != m_reader)
+        return;
+
     m_atend = true;
 }
 

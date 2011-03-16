@@ -31,6 +31,8 @@ void CodecDevice::setInputDevice(QIODevice *input)
 
 void CodecDevice::setCodec(Codec *codec)
 {
+    if (m_codec)
+        disconnect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
     m_codec = codec;
     connect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
 }
