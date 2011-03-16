@@ -21,10 +21,28 @@ Rectangle {
         id: musicModel
     }
 
+    Rectangle {
+        id: buttons
+        clip: true
+
+        color: "steelblue"
+
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 40
+    }
+
     ListView {
         id: list
         clip: true
-        anchors.fill: parent
+
+        anchors.left: buttons.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 60
+
         model: musicModel
         highlight: Rectangle { color: "lightsteelblue"; radius : 2 }
         focus: true

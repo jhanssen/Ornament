@@ -24,6 +24,7 @@ int main(int argc, char** argv)
     qmlRegisterType<MusicModel>("MusicModel", 1, 0, "MusicModel");
 
     QDeclarativeView view(QUrl::fromLocalFile("player.qml"));
+    view.setResizeMode(QDeclarativeView::SizeRootObjectToView);
     view.show();
 
     int r = app.exec();
