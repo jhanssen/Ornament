@@ -400,24 +400,27 @@ void MediaJob::updatePaths(const PathSet &paths)
     bool shouldUpdate = s_data->paths.isEmpty();
     s_data->paths += paths;
 
-    if (shouldUpdate) {
-        if (!s_data->paths.isEmpty())
-            QTimer::singleShot(0, this, SLOT(updatePaths()));
-    }
-
-    emit updateFinished();
+    if (shouldUpdate && !s_data->paths.isEmpty()) {
+        QTimer::singleShot(0, this, SLOT(updatePaths()));
+    } else
+        emit updateFinished();
 }
 
 void MediaJob::updatePaths()
 {
     if (s_data->updatePaths(this))
         QTimer::singleShot(0, this, SLOT(updatePaths()));
+    else {
+        emit updateFinished();
+        emit finished();
+    }
 }
 
 void MediaJob::requestTag(const QString &filename)
 {
     Tag t(filename);
     emit tag(t);
+    emit finished();
 }
 
 void MediaJob::setTag(const QString &filename, const Tag &tag)
@@ -425,12 +428,14 @@ void MediaJob::setTag(const QString &filename, const Tag &tag)
     // ### need to write the tag here
 
     emit tagWritten(filename);
+    emit finished();
 }
 
 void MediaJob::readLibrary()
 {
     createData();
     s_data->readLibrary(this);
+    emit finished();
 }
 
 void MediaJob::readTag(const QString &path, Tag& tag)
