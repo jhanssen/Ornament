@@ -6,6 +6,15 @@ import MusicModel 1.0
 Rectangle {
     SystemPalette { id: activePalette }
 
+    function playFile(filename) {
+        if (filename === "")
+            return;
+        audioDevice.device = audioDevice.devices[0]
+        audioPlayer.audioDevice = audioDevice
+        audioPlayer.filename = filename
+        audioPlayer.play()
+    }
+
     width: 200
     height: 200
 
@@ -34,7 +43,7 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 50
 
-        Button { id: playButton; image: "icons/play.svg" }
+        Button { id: playButton; image: "icons/play.svg"; onClicked: { playFile(musicModel.firstFilename()) } }
         Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom }
         Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom }
         Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom }
@@ -89,11 +98,7 @@ Rectangle {
                             else if (musicModel.currentAlbum === 0)
                                 musicModel.currentAlbum = musicid
                             else {
-                                var filename = musicModel.filename(musicid)
-                                audioDevice.device = audioDevice.devices[0]
-                                audioPlayer.audioDevice = audioDevice
-                                audioPlayer.filename = filename
-                                audioPlayer.play()
+                                playFile(musicModel.filename(musicid))
                             }
                         }
                     }
