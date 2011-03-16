@@ -71,6 +71,11 @@ CodecMad::CodecMad(QObject *parent)
 {
 }
 
+CodecMad::~CodecMad()
+{
+    delete[] m_buffer;
+}
+
 bool CodecMad::init(const QAudioFormat& format)
 {
     m_format = format;

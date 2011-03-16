@@ -14,6 +14,7 @@ class CodecMad : public Codec
     Q_CLASSINFO("mimetype", "audio/mp3")
 public:
     Q_INVOKABLE CodecMad(QObject* parent = 0);
+    ~CodecMad();
 
     bool init(const QAudioFormat &format);
 

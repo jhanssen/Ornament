@@ -6,6 +6,11 @@ AudioDevice::AudioDevice(QObject *parent) :
 {
 }
 
+AudioDevice::~AudioDevice()
+{
+    delete m_output;
+}
+
 QStringList AudioDevice::devices() const
 {
     QStringList ret;

@@ -8,6 +8,7 @@ class Buffer
 {
 public:
     Buffer();
+    ~Buffer();
 
     void add(QByteArray* sub);
     void clear();

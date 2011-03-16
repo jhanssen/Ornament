@@ -6,6 +6,11 @@ Buffer::Buffer()
 {
 }
 
+Buffer::~Buffer()
+{
+    qDeleteAll(m_subs);
+}
+
 void Buffer::add(QByteArray *sub)
 {
     m_subs.append(sub);

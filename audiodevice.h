@@ -12,6 +12,7 @@ class AudioDevice : public QObject
     Q_PROPERTY(QString device READ device WRITE setDevice)
 public:
     AudioDevice(QObject *parent = 0);
+    ~AudioDevice();
 
     QStringList devices() const;
 
