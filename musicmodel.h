@@ -25,8 +25,8 @@ public:
     int rowCount(const QModelIndex& parent) const;
     int columnCount(const QModelIndex& parent) const;
 
-    Q_INVOKABLE QString filename(int track) const;
-    Q_INVOKABLE QString firstFilename() const;
+    Q_INVOKABLE QString filenameById(int track) const;
+    Q_INVOKABLE QString filenameByPosition(int position) const;
 
 private slots:
     void updateArtist(const Artist& artist);
