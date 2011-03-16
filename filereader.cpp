@@ -192,10 +192,6 @@ void FileReaderDevice::jobStarted()
 void FileReaderDevice::jobFinished(IOJob *job)
 {
     if (m_reader == job) {
-        disconnect(m_reader, SIGNAL(started()), this, SLOT(jobStarted()));
-        disconnect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
-        disconnect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-        disconnect(m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
         m_reader = 0;
         m_jobid = 0;
         m_pending.clear();
