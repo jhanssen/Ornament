@@ -35,6 +35,7 @@ struct Track
     int id;
     QString name;
     QString filename;
+    int trackno;
 };
 
 class MediaLibrary : public QObject

@@ -3,11 +3,18 @@
 
 struct MusicModelTrack
 {
-    int id;
     int pos;
+
+    int id;
     QString track;
     QString filename;
+    int trackno;
 };
+
+static bool trackLessThan(const MusicModelTrack* t1, const MusicModelTrack* t2)
+{
+    return t1->trackno < t2->trackno;
+}
 
 MusicModel::MusicModel(QObject *parent)
     : QAbstractTableModel(parent), m_artist(0), m_album(0)
@@ -138,22 +145,29 @@ void MusicModel::buildTracks()
     if (!m_artist || !m_album)
         return;
 
-    int pos = 0;
     QHash<int, Track>::ConstIterator it = m_album->tracks.begin();
     QHash<int, Track>::ConstIterator itend = m_album->tracks.end();
     while (it != itend) {
         MusicModelTrack* track = new MusicModelTrack;
-        track->pos = pos;
         track->id = it.value().id;
         track->track = it.value().name;
         track->filename = it.value().filename;
+        track->trackno = it.value().trackno;
 
         m_tracksPos.append(track);
         m_tracksId[track->id] = track;
         m_tracksFile[track->filename] = track;
 
         ++it;
-        ++pos;
+    }
+
+    // Sort by track number
+    qSort(m_tracksPos.begin(), m_tracksPos.end(), trackLessThan);
+
+    // Initialize the pos(ition) variable
+    int pos = 0;
+    foreach(MusicModelTrack* track, m_tracksPos) {
+        track->pos = pos++;
     }
 }
 

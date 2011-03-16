@@ -29,7 +29,7 @@ struct MediaData
     void createTables();
     int addArtist(const QString& name, bool* added = 0);
     int addAlbum(int artistid, const QString& name, bool* added = 0);
-    int addTrack(int artistid, int albumid, const QString& name, const QString& filename, bool* added = 0);
+    int addTrack(int artistid, int albumid, const QString& name, const QString& filename, int trackno, bool* added = 0);
 
     bool pushState(PathSet& paths, const QString& prefix);
 
@@ -111,7 +111,7 @@ void MediaData::createTables()
     QSqlQuery q(database);
     q.exec(QLatin1String("create table artists (id integer primary key autoincrement, artist text not null)"));
     q.exec(QLatin1String("create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id))"));
-    q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
+    q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, trackno integer, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
 }
 
 int MediaData::addArtist(const QString &name, bool* added)
@@ -169,7 +169,7 @@ int MediaData::addAlbum(int artistid, const QString &name, bool* added)
     return q.lastInsertId().toInt();
 }
 
-int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, bool* added)
+int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, int trackno, bool* added)
 {
     if (artistid <= 0 || albumid <= 0)
         return qMin(artistid, albumid);
@@ -186,11 +186,12 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
         return q.value(0).toInt();
     }
 
-    q.prepare("insert into tracks (track, filename, artistid, albumid) values (?, ?, ?, ?)");
+    q.prepare("insert into tracks (track, filename, trackno, artistid, albumid) values (?, ?, ?, ?, ?)");
     q.bindValue(0, name);
     q.bindValue(1, filename);
-    q.bindValue(2, artistid);
-    q.bindValue(3, albumid);
+    q.bindValue(2, trackno);
+    q.bindValue(3, artistid);
+    q.bindValue(4, albumid);
     if (!q.exec()) {
         if (added)
             *added = false;
@@ -250,7 +251,7 @@ bool MediaData::updatePaths(MediaJob* job)
             bool added;
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
-            int trackid = addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file, &added);
+            int trackid = addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file, tag.data(QLatin1String("track")).toInt(), &added);
 
             if (added) {
                 Artist artist;
@@ -308,7 +309,7 @@ void MediaData::readLibrary(MediaJob* job)
             albumData.id = albumid;
             albumData.name = albumQuery.value(1).toString();
 
-            trackQuery.prepare("select tracks.id, tracks.track, tracks.filename from tracks where tracks.artistid = ? and tracks.albumid = ?");
+            trackQuery.prepare("select tracks.id, tracks.track, tracks.filename, tracks.trackno from tracks where tracks.artistid = ? and tracks.albumid = ? order by tracks.trackno");
             trackQuery.bindValue(0, artistid);
             trackQuery.bindValue(1, albumid);
             trackQuery.exec();
@@ -319,6 +320,7 @@ void MediaData::readLibrary(MediaJob* job)
                 trackData.id = trackQuery.value(0).toInt();
                 trackData.name = trackQuery.value(1).toString();
                 trackData.filename = trackQuery.value(2).toString();
+                trackData.trackno = trackQuery.value(3).toInt();
 
                 albumData.tracks[trackData.id] = trackData;
             }
