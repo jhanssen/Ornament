@@ -40,4 +40,5 @@ SOURCES += main.cpp \
 LIBS += codecs/mad/mad/libmad.a -ltag
 
 OTHER_FILES += \
-    player.qml
+    player.qml \
+    Button.qml

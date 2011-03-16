@@ -6,8 +6,10 @@ import MusicModel 1.0
 Rectangle {
     SystemPalette { id: activePalette }
 
-    width: 100
-    height: 120
+    width: 200
+    height: 200
+
+    color: "#f0f0f0"
 
     AudioDevice {
         id: audioDevice
@@ -25,12 +27,17 @@ Rectangle {
         id: buttons
         clip: true
 
-        color: "steelblue"
+        color: "#444444"
 
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 40
+        width: 50
+
+        Button { id: playButton; image: "icons/play.svg" }
+        Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom }
+        Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom }
+        Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom }
     }
 
     ListView {
@@ -41,7 +48,6 @@ Rectangle {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: 60
 
         model: musicModel
         highlight: Rectangle { color: "lightsteelblue"; radius : 2 }
