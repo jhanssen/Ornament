@@ -87,6 +87,7 @@ Rectangle {
         id: highlight
         Rectangle {
             color: "lightsteelblue"; radius: 3
+            y: list.currentItem ? list.currentItem.y : 0
             Behavior on y {
                 SpringAnimation {
                     spring: 3
@@ -112,6 +113,14 @@ Rectangle {
         property int currentMusicId
         property int currentMouseButton
 
+        onCurrentIndexChanged: {
+            if (currentIndex === -1) {
+                highlightItem.opacity = 0
+                highlightItem.y = 0
+            } else
+                highlightItem.opacity = 1
+        }
+
         onOpacityChanged: {
             if (opacity !== 0) {
                 return
@@ -122,8 +131,8 @@ Rectangle {
                     musicModel.currentAlbum = 0
                 else if (musicModel.currentArtist !== 0)
                     musicModel.currentArtist = 0
-                list.currentIndex = -1
 
+                list.currentIndex = -1
                 fadeIn.start()
 
                 return
@@ -184,14 +193,13 @@ Rectangle {
                         anchors.fill: parent
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
+                        onPressed: {
+                            list.currentIndex = musicindex
+                        }
+
                         onClicked: {
                             if (mouse.button === Qt.LeftButton && musicModel.currentArtist !== 0 && musicModel.currentAlbum !== 0) {
                                 playFile(musicModel.filenameById(musicid))
-
-                                var cur = musicModel.positionFromFilename(audioPlayer.filename)
-                                if (cur !== -1)
-                                    list.currentIndex = cur;
-
                                 return
                             }
 

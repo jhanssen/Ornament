@@ -25,6 +25,7 @@ MusicModel::MusicModel(QObject *parent)
     QHash<int, QByteArray> roles;
     roles[Qt::UserRole + 1] = "musicitem";
     roles[Qt::UserRole + 2] = "musicid";
+    roles[Qt::UserRole + 3] = "musicindex";
     setRoleNames(roles);
 }
 
@@ -232,6 +233,9 @@ QVariant MusicModel::data(const QModelIndex &index, int role) const
 {
     if (role < Qt::UserRole)
         return musicData(index, role);
+
+    if (role == Qt::UserRole + 3)
+        return index.row();
 
     int col = role - Qt::UserRole - 1;
     QModelIndex idx = this->index(index.row(), col);
