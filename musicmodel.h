@@ -15,6 +15,7 @@ class MusicModel : public QAbstractTableModel
     Q_PROPERTY(int currentAlbum READ currentAlbum WRITE setCurrentAlbum)
 public:
     MusicModel(QObject *parent = 0);
+    ~MusicModel();
 
     int currentArtist() const;
     void setCurrentArtist(int artist);

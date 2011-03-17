@@ -28,6 +28,11 @@ MusicModel::MusicModel(QObject *parent)
     setRoleNames(roles);
 }
 
+MusicModel::~MusicModel()
+{
+    qDeleteAll(m_tracksPos);
+}
+
 void MusicModel::updateArtist(const Artist &artist)
 {
     int cur = m_artists.size();
@@ -82,6 +87,11 @@ void MusicModel::setCurrentArtist(int artist)
     Artist* oldartist = m_artist;
     Album* oldalbum = m_album;
 
+    qDeleteAll(m_tracksPos);
+    m_tracksPos.clear();
+    m_tracksId.clear();
+    m_tracksFile.clear();
+
     if (artist > 0) {
         if (m_artists.contains(artist))
             m_artist = &m_artists[artist];
@@ -90,11 +100,6 @@ void MusicModel::setCurrentArtist(int artist)
     } else
         m_artist = 0;
     m_album = 0;
-
-    qDeleteAll(m_tracksPos);
-    m_tracksPos.clear();
-    m_tracksId.clear();
-    m_tracksFile.clear();
 
     if (m_artist != oldartist || m_album != oldalbum)
         reset();
@@ -114,27 +119,20 @@ void MusicModel::setCurrentAlbum(int album)
     if (m_artist == 0)
         return;
 
+    qDeleteAll(m_tracksPos);
+    m_tracksPos.clear();
+    m_tracksId.clear();
+    m_tracksFile.clear();
+
     if (album > 0) {
         if (m_artist->albums.contains(album)) {
             m_album = &(m_artist->albums[album]);
 
             buildTracks();
-        } else {
+        } else
             m_album = 0;
-
-            qDeleteAll(m_tracksPos);
-            m_tracksPos.clear();
-            m_tracksId.clear();
-            m_tracksFile.clear();
-        }
-    } else {
+    } else
         m_album = 0;
-
-        qDeleteAll(m_tracksPos);
-        m_tracksPos.clear();
-        m_tracksId.clear();
-        m_tracksFile.clear();
-    }
 
     if (m_album != oldalbum)
         reset();
