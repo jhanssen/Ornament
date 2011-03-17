@@ -52,8 +52,6 @@ void AudioPlayer::tagReady(const Tag &tag)
 
 void AudioPlayer::outputStateChanged(QAudio::State state)
 {
-    State oldstate = m_state;
-
     switch (state) {
     case QAudio::ActiveState:
     case QAudio::IdleState:
@@ -70,7 +68,7 @@ void AudioPlayer::outputStateChanged(QAudio::State state)
         break;
     }
 
-    if (m_state != oldstate)
+    if (state != QAudio::IdleState)
         emit stateChanged();
 }
 

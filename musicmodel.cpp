@@ -264,6 +264,9 @@ QString MusicModel::filenameByPosition(int position) const
 
 int MusicModel::positionFromFilename(const QString &filename) const
 {
+    if (filename.isEmpty())
+        return -1;
+
     QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
     if (it == m_tracksFile.end())
         return -1;
