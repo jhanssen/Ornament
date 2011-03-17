@@ -106,6 +106,9 @@ qint64 FileReaderDevice::bytesAvailable() const
 
 void FileReaderDevice::close()
 {
+    if (!isOpen())
+        return;
+
     QIODevice::close();
     m_atend = false;
 
@@ -162,11 +165,13 @@ void FileReaderDevice::jobCreated(IOJob *job)
 
 void FileReaderDevice::jobFinished(IOJob *job)
 {
-    if (m_reader == job) {
-        m_reader = 0;
+    if (!m_reader || m_reader == job) {
         m_jobid = 0;
+        m_reader = 0;
         m_pending.clear();
         m_pendingTotal = 0;
+
+        close();
     }
 }
 
@@ -219,7 +224,7 @@ void FileReaderDevice::readerData(QByteArray *data)
 
 void FileReaderDevice::readerAtEnd()
 {
-    if (sender() != m_reader)
+    if (m_reader && sender() != m_reader)
         return;
 
     m_atend = true;
