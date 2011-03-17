@@ -228,8 +228,10 @@ CodecMad::Status CodecMad::decode()
     if (outsize > 0) {
         out->truncate(outsize);
         emit output(out);
+
+        return Ok;
     } else
         delete out;
 
-    return Ok;
+    return Error;
 }
