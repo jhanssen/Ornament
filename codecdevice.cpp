@@ -53,7 +53,7 @@ bool CodecDevice::fillBuffer()
             m_codec->feed(input, m_input->atEnd());
             qDebug() << "feed complete, decoding";
         } else if (status == Codec::Error) {
-            // ### ouch
+            qDebug() << "codec error";
             break;
         }
 
@@ -63,7 +63,7 @@ bool CodecDevice::fillBuffer()
         } while (status == Codec::Ok);
     } while (m_decoded.size() < CODEC_BUFFER_MAX);
 
-    return true;
+    return (status != Codec::Error);
 }
 
 bool CodecDevice::open(OpenMode mode)
@@ -84,7 +84,7 @@ qint64 CodecDevice::bytesAvailable() const
 
 qint64 CodecDevice::readData(char *data, qint64 maxlen)
 {
-    qDebug() << "we go?";
+    qDebug() << "we go?" << m_decoded.size();
     if (m_decoded.size() < CODEC_BUFFER_MIN) {
         if (!fillBuffer() && m_decoded.isEmpty()) {
             qDebug() << "no go :(";
@@ -94,10 +94,10 @@ qint64 CodecDevice::readData(char *data, qint64 maxlen)
     }
 
     qint64 toread = qMin(maxlen, static_cast<qint64>(m_decoded.size()));
+    qDebug() << "toread" << toread << m_decoded.size();
     if (toread == 0)
         return 0;
 
-    qDebug() << toread << m_decoded.size();
     QByteArray bufferdata = m_decoded.read(toread);
 
     memcpy(data, bufferdata.constData(), toread);
