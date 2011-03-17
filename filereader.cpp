@@ -135,6 +135,7 @@ bool FileReaderDevice::open(OpenMode mode)
     m_buffer.clear();
     if (m_reader) {
         m_reader->stop();
+        m_jobid = 0;
         m_reader = 0;
         m_pending.clear();
         m_pendingTotal = 0;
@@ -150,6 +151,8 @@ bool FileReaderDevice::open(OpenMode mode)
 void FileReaderDevice::jobCreated(IOJob *job)
 {
     if (!m_reader && job->jobNumber() == m_jobid) {
+        m_jobid = 0;
+
         m_reader = static_cast<FileReader*>(job); // not sure if qobject_cast<> is safe to call at this point
         if (!m_reader)
             return;
@@ -165,7 +168,7 @@ void FileReaderDevice::jobCreated(IOJob *job)
 
 void FileReaderDevice::jobFinished(IOJob *job)
 {
-    if (!m_reader || m_reader == job) {
+    if ((!m_reader && !m_jobid) || m_reader == job) {
         m_jobid = 0;
         m_reader = 0;
         m_pending.clear();
