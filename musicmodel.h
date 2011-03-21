@@ -5,6 +5,8 @@
 #include <QAbstractTableModel>
 #include <QList>
 
+struct MusicModelArtist;
+struct MusicModelAlbum;
 struct MusicModelTrack;
 
 class MusicModel : public QAbstractTableModel
@@ -43,12 +45,13 @@ private:
     void buildTracks();
 
 private:
-    Artist* m_artist;
-    Album* m_album;
+    MusicModelArtist* m_artist;
+    MusicModelAlbum* m_album;
 
-    QHash<int, Artist> m_artists;
+    QHash<int, MusicModelArtist*> m_artists;
+    QHash<int, MusicModelAlbum*> m_albums;
+    QHash<int, MusicModelTrack*> m_tracks;
 
-    QHash<int, MusicModelTrack*> m_tracksId;
     QHash<QString, MusicModelTrack*> m_tracksFile;
     QList<MusicModelTrack*> m_tracksPos;
 };

@@ -1,6 +1,24 @@
 #include "musicmodel.h"
 #include <QDebug>
 
+struct MusicModelArtist
+{
+    int id;
+    QString artist;
+
+    QHash<int, MusicModelAlbum*> albums;
+    QHash<int, MusicModelTrack*> tracks;
+};
+
+struct MusicModelAlbum
+{
+    int id;
+    QString album;
+
+    MusicModelArtist* artist;
+    QHash<int, MusicModelTrack*> tracks;
+};
+
 struct MusicModelTrack
 {
     int pos;
@@ -9,6 +27,9 @@ struct MusicModelTrack
     QString track;
     QString filename;
     int trackno;
+
+    MusicModelArtist* artist;
+    MusicModelAlbum* album;
 };
 
 static bool trackLessThan(const MusicModelTrack* t1, const MusicModelTrack* t2)
@@ -32,54 +53,183 @@ MusicModel::MusicModel(QObject *parent)
 
 MusicModel::~MusicModel()
 {
-    qDeleteAll(m_tracksPos);
+    qDeleteAll(m_artists);
+    qDeleteAll(m_albums);
+    qDeleteAll(m_tracks);
 }
 
 void MusicModel::updateArtist(const Artist &artist)
 {
-    int cur = m_artists.size();
+    bool insertArtist = (!m_artist && !m_album);
+    bool insertAlbum = (m_artist && !m_album);
+    bool insertTrack = (m_artist && m_album);
 
-    if (m_album || m_artist) {
-        m_album = 0;
-        m_artist = 0;
+    if (insertArtist)
+        beginInsertRows(QModelIndex(), m_artists.size(), m_artists.size());
 
-        qDeleteAll(m_tracksPos);
-        m_tracksPos.clear();
-        m_tracksId.clear();
-        m_tracksFile.clear();
-
-        reset();
-    }
-
+    MusicModelArtist* currentArtist;
     if (!m_artists.contains(artist.id)) {
-        emit beginInsertRows(QModelIndex(), cur, cur);
-        m_artists[artist.id] = artist;
-        emit endInsertRows();
-    } else {
-        QString name = artist.name;
-        int id = artist.id;
-        Artist& existingArtist = m_artists[id];
-        // ### double lookup here due to foreach() only accepting const arguments. Fix?
-        foreach(const Album& album, artist.albums) {
-            if (!existingArtist.albums.contains(album.id)) {
-                existingArtist.albums[album.id] = album;
-            } else {
-                existingArtist.albums[album.id].name = album.name;
-                foreach(const Track& track, album.tracks) {
-                    existingArtist.albums[album.id].tracks[track.id] = track;
-                }
-            }
-        }
-        existingArtist.name = name;
+        currentArtist = new MusicModelArtist;
+        m_artists[artist.id] = currentArtist;
+    } else
+        currentArtist = m_artists[artist.id];
 
-        // ### better to figure out the exact row of the updated artist perhaps
-        emit dataChanged(createIndex(0, 0), createIndex(m_artists.size() - 1, 0));
+    currentArtist->id = artist.id;
+    currentArtist->artist = artist.name;
+
+    if (insertArtist)
+        endInsertRows();
+
+    MusicModelAlbum* currentAlbum;
+    MusicModelTrack* currentTrack;
+
+    if (insertAlbum && m_artist->id == currentArtist->id && !artist.albums.isEmpty())
+        beginInsertRows(QModelIndex(), currentArtist->albums.size(), currentArtist->albums.size() + artist.albums.size() - 1);
+
+    foreach(const Album& album, artist.albums) {
+        if (!currentArtist->albums.contains(album.id)) {
+            currentAlbum = new MusicModelAlbum;
+            currentArtist->albums[album.id] = currentAlbum;
+            // Assume the album is not in m_albums either
+            m_albums[album.id] = currentAlbum;
+        } else
+            currentAlbum = currentArtist->albums[album.id];
+
+        currentAlbum->id = album.id;
+        currentAlbum->album = album.name;
+        currentAlbum->artist = currentArtist;
+
+        if (insertTrack && m_album->id == currentAlbum->id && !album.tracks.isEmpty())
+            beginInsertRows(QModelIndex(), currentAlbum->tracks.size(), currentAlbum->tracks.size() + album.tracks.size() - 1);
+
+        foreach(const Track& track, album.tracks) {
+            if (!currentAlbum->tracks.contains(track.id)) {
+                currentTrack = new MusicModelTrack;
+                currentAlbum->tracks[track.id] = currentTrack;
+                currentArtist->tracks[track.id] = currentTrack;
+                m_tracks[track.id] = currentTrack;
+            } else
+                currentTrack = currentAlbum->tracks[track.id];
+
+            currentTrack->id = track.id;
+            currentTrack->track = track.name;
+            currentTrack->filename = track.filename;
+            currentTrack->trackno = track.trackno;
+            currentTrack->artist = currentArtist;
+            currentTrack->album = currentAlbum;
+        }
+
+        if (insertTrack && m_album->id == currentAlbum->id && !album.tracks.isEmpty()) {
+            endInsertRows();
+            buildTracks();
+        }
     }
+
+    if (insertAlbum && m_artist->id == currentArtist->id && !artist.albums.isEmpty())
+        endInsertRows();
 }
 
 void MusicModel::removeTrack(int trackid)
 {
-    // ### implement me
+    bool removeArtist = (!m_artist && !m_album);
+    bool removeAlbum = (m_artist && !m_album);
+    bool removeTrack = (m_artist && m_album);
+
+    // Test and remove track
+    QHash<int, MusicModelTrack*>::iterator tit = m_tracks.find(trackid);
+    if (tit == m_tracks.end())
+        return;
+
+    MusicModelTrack* track = tit.value();
+
+    if (removeTrack) {
+        int trackIdx = m_tracksPos.indexOf(track);
+        if (trackIdx >= 0) {
+            beginRemoveRows(QModelIndex(), trackIdx, trackIdx);
+
+            m_tracksPos.removeAt(trackIdx);
+            QHash<QString, MusicModelTrack*>::iterator fit = m_tracksFile.find(track->filename);
+            if (fit != m_tracksFile.end())
+                m_tracksFile.erase(fit);
+        }
+    }
+
+    m_tracks.erase(tit);
+
+    // Remove track from album
+    MusicModelAlbum* album = track->album;
+    tit = album->tracks.find(trackid);
+    if (tit == album->tracks.end())
+        return;
+
+    album->tracks.erase(tit);
+
+    // Remove track from artist
+    MusicModelArtist* artist = album->artist;
+    tit = artist->tracks.find(trackid);
+    if (tit == artist->tracks.end())
+        return;
+
+    artist->tracks.erase(tit);
+
+    if (removeTrack)
+        endRemoveRows();
+
+    // Check if this was the last track of the album
+    if (!album->tracks.isEmpty()) {
+        delete track;
+        return;
+    }
+
+    // Test and remove album
+    QHash<int, MusicModelAlbum*>::iterator alit = m_albums.find(album->id);
+    if (alit == m_albums.end())
+        return;
+
+    if (removeAlbum) {
+        int albumIdx = m_albums.values().indexOf(album);
+        if (albumIdx >= 0)
+            beginRemoveRows(QModelIndex(), albumIdx, albumIdx);
+    }
+
+    m_albums.erase(alit);
+
+    // Remove album from artist
+    alit = artist->albums.find(album->id);
+    if (alit == artist->albums.end())
+        return;
+
+    artist->albums.erase(alit);
+
+    if (removeAlbum)
+        endRemoveRows();
+
+    // Check if this was the last album of the artist
+    if (!artist->albums.isEmpty() && !artist->tracks.isEmpty()) {
+        delete track;
+        delete album;
+        return;
+    }
+
+    // Test and remove artist
+    QHash<int, MusicModelArtist*>::iterator arit = m_artists.find(artist->id);
+    if (arit == m_artists.end())
+        return;
+
+    if (removeArtist) {
+        int artistIdx = m_artists.values().indexOf(artist);
+        if (artistIdx >= 0)
+            beginRemoveRows(QModelIndex(), artistIdx, artistIdx);
+    }
+
+    m_artists.erase(arit);
+
+    if (removeArtist)
+        endRemoveRows();
+
+    delete track;
+    delete album;
+    delete artist;
 }
 
 int MusicModel::currentArtist() const
@@ -91,17 +241,15 @@ int MusicModel::currentArtist() const
 
 void MusicModel::setCurrentArtist(int artist)
 {
-    Artist* oldartist = m_artist;
-    Album* oldalbum = m_album;
+    MusicModelArtist* oldartist = m_artist;
+    MusicModelAlbum* oldalbum = m_album;
 
-    qDeleteAll(m_tracksPos);
     m_tracksPos.clear();
-    m_tracksId.clear();
     m_tracksFile.clear();
 
     if (artist > 0) {
         if (m_artists.contains(artist))
-            m_artist = &m_artists[artist];
+            m_artist = m_artists[artist];
         else
             m_artist = 0;
     } else
@@ -121,19 +269,17 @@ int MusicModel::currentAlbum() const
 
 void MusicModel::setCurrentAlbum(int album)
 {
-    Album* oldalbum = m_album;
+    MusicModelAlbum* oldalbum = m_album;
 
     if (m_artist == 0)
         return;
 
-    qDeleteAll(m_tracksPos);
     m_tracksPos.clear();
-    m_tracksId.clear();
     m_tracksFile.clear();
 
     if (album > 0) {
         if (m_artist->albums.contains(album)) {
-            m_album = &(m_artist->albums[album]);
+            m_album = m_artist->albums[album];
 
             buildTracks();
         } else
@@ -150,18 +296,11 @@ void MusicModel::buildTracks()
     if (!m_artist || !m_album)
         return;
 
-    QHash<int, Track>::ConstIterator it = m_album->tracks.begin();
-    QHash<int, Track>::ConstIterator itend = m_album->tracks.end();
+    QHash<int, MusicModelTrack*>::ConstIterator it = m_album->tracks.begin();
+    QHash<int, MusicModelTrack*>::ConstIterator itend = m_album->tracks.end();
     while (it != itend) {
-        MusicModelTrack* track = new MusicModelTrack;
-        track->id = it.value().id;
-        track->track = it.value().name;
-        track->filename = it.value().filename;
-        track->trackno = it.value().trackno;
-
-        m_tracksPos.append(track);
-        m_tracksId[track->id] = track;
-        m_tracksFile[track->filename] = track;
+        m_tracksPos.append(*it);
+        m_tracksFile[(*it)->filename] = *it;
 
         ++it;
     }
@@ -185,23 +324,23 @@ QVariant MusicModel::musicData(const QModelIndex &index, int role) const
 
     if (role == Qt::DisplayRole) {
         if (!m_artist) {
-            QList<Artist> artists = m_artists.values();
+            QList<MusicModelArtist*> artists = m_artists.values();
 
             if (index.row() < artists.size()) {
                 if (index.column() == 0)
-                    ret = artists.at(index.row()).name;
+                    ret = artists.at(index.row())->artist;
                 else if (index.column() == 1)
-                    ret = artists.at(index.row()).id;
+                    ret = artists.at(index.row())->id;
             }
             return ret;
         } else if (!m_album) {
-            QList<Album> albums = m_artist->albums.values();
+            QList<MusicModelAlbum*> albums = m_artist->albums.values();
 
             if (index.row() < albums.size()) {
                 if (index.column() == 0)
-                    ret = albums.at(index.row()).name;
+                    ret = albums.at(index.row())->album;
                 else if (index.column() == 1)
-                    ret = albums.at(index.row()).id;
+                    ret = albums.at(index.row())->id;
             }
             return ret;
         } else {
@@ -221,7 +360,7 @@ int MusicModel::columnCount(const QModelIndex &parent) const
 {
     if (parent != QModelIndex())
         return 0;
-    return 2;
+    return 3;
 }
 
 int MusicModel::rowCount(const QModelIndex &parent) const
@@ -259,7 +398,7 @@ QString MusicModel::filenameById(int id) const
     if (m_artist == 0 || m_album == 0)
         return QString();
 
-    return m_tracksId.value(id)->filename;
+    return m_tracks.value(id)->filename;
 }
 
 QString MusicModel::filenameByPosition(int position) const
