@@ -126,13 +126,14 @@ Rectangle {
                 return
             }
 
+            list.currentIndex = -1
+
             if (currentMouseButton === Qt.RightButton) {
                 if (musicModel.currentAlbum !== 0)
                     musicModel.currentAlbum = 0
                 else if (musicModel.currentArtist !== 0)
                     musicModel.currentArtist = 0
 
-                list.currentIndex = -1
                 fadeIn.start()
 
                 return
