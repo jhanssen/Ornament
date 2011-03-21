@@ -35,6 +35,7 @@ public:
 
 private slots:
     void updateArtist(const Artist& artist);
+    void removeTrack(int trackid);
 
 private:
     QVariant musicData(const QModelIndex& index, int role) const;

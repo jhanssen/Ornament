@@ -26,6 +26,8 @@ struct MediaData
     bool updatePaths(MediaJob* job);
     void readLibrary(MediaJob* job);
 
+    void removeNonExistingFiles(MediaJob* job);
+
     void createTables();
     int addArtist(const QString& name, bool* added = 0);
     int addAlbum(int artistid, const QString& name, bool* added = 0);
@@ -66,6 +68,7 @@ signals:
     void tagWritten(const QString& filename);
 
     void artist(const Artist& artist);
+    void trackRemoved(int trackid);
     void updateStarted();
     void updateFinished();
 
@@ -282,7 +285,45 @@ bool MediaData::updatePaths(MediaJob* job)
         states.pop();
     }
 
+    removeNonExistingFiles(job);
+
     return true;
+}
+
+void MediaData::removeNonExistingFiles(MediaJob* job)
+{
+    QSqlQuery query;
+    QFileInfo file;
+    QSet<int> trackpending, albumpending, artistpending;
+
+    query.exec("select tracks.id, tracks.filename, tracks.albumid, tracks.artistid from tracks");
+    while (query.next()) {
+        file.setFile(query.value(1).toString());
+        if (!file.exists()) {
+            qDebug() << "want to remove" << query.value(1).toString() << "which has an id of" << query.value(0).toInt();
+            // remove from database
+            trackpending.insert(query.value(0).toInt());
+            albumpending.insert(query.value(2).toInt());
+            artistpending.insert(query.value(3).toInt());
+        }
+    }
+    if (trackpending.isEmpty())
+        return;
+
+    foreach(int trackid, trackpending) {
+        query.exec("delete from tracks where tracks.id=" + QString::number(trackid));
+        emit job->trackRemoved(trackid);
+    }
+    foreach(int albumid, albumpending) {
+        query.exec("select tracks.albumid from tracks where tracks.albumid=" + QString::number(albumid));
+        if (!query.next())
+            query.exec("delete from albums where albums.id=" + QString::number(albumid));
+    }
+    foreach(int artistid, artistpending) {
+        query.exec("select albums.artistid from albums where albums.artistid=" + QString::number(artistid));
+        if (!query.next())
+            query.exec("delete from artists where artists.id=" + QString::number(artistid));
+    }
 }
 
 void MediaData::readLibrary(MediaJob* job)
@@ -574,6 +615,7 @@ void MediaLibrary::jobCreated(IOJob *job)
 
         connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
         connect(media, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
+        connect(media, SIGNAL(trackRemoved(int)), this, SIGNAL(trackRemoved(int)));
         connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));
         connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
         connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));

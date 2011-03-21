@@ -63,6 +63,7 @@ signals:
     void tagWritten(const QString& filename);
 
     void artist(const Artist& artist);
+    void trackRemoved(int trackid);
     void updateStarted();
     void updateFinished();
 

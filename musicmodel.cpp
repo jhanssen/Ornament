@@ -20,6 +20,7 @@ MusicModel::MusicModel(QObject *parent)
     : QAbstractTableModel(parent), m_artist(0), m_album(0)
 {
     connect(MediaLibrary::instance(), SIGNAL(artist(Artist)), this, SLOT(updateArtist(Artist)));
+    connect(MediaLibrary::instance(), SIGNAL(trackRemoved(int)), this, SLOT(removeTrack(int)));
     MediaLibrary::instance()->readLibrary();
 
     QHash<int, QByteArray> roles;
@@ -74,6 +75,11 @@ void MusicModel::updateArtist(const Artist &artist)
         // ### better to figure out the exact row of the updated artist perhaps
         emit dataChanged(createIndex(0, 0), createIndex(m_artists.size() - 1, 0));
     }
+}
+
+void MusicModel::removeTrack(int trackid)
+{
+    // ### implement me
 }
 
 int MusicModel::currentArtist() const
