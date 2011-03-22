@@ -1,8 +1,18 @@
 #include "musicmodel.h"
+#include <QDeclarativeComponent>
 #include <QDebug>
 
-struct MusicModelArtist
+class MusicModelArtist : public QObject
 {
+    Q_OBJECT
+
+    Q_PROPERTY(int id READ identifier)
+    Q_PROPERTY(QString name READ artistName)
+
+public:
+    int identifier() const { return id; }
+    QString artistName() const { return artist; }
+
     int id;
     QString artist;
 
@@ -10,8 +20,17 @@ struct MusicModelArtist
     QHash<int, MusicModelTrack*> tracks;
 };
 
-struct MusicModelAlbum
+class MusicModelAlbum : public QObject
 {
+    Q_OBJECT
+
+    Q_PROPERTY(int id READ identifier)
+    Q_PROPERTY(QString name READ albumName)
+
+public:
+    int identifier() const { return id; }
+    QString albumName() const { return album; }
+
     int id;
     QString album;
 
@@ -19,8 +38,9 @@ struct MusicModelAlbum
     QHash<int, MusicModelTrack*> tracks;
 };
 
-struct MusicModelTrack
+class MusicModelTrack
 {
+public:
     int pos;
 
     int id;
@@ -31,6 +51,8 @@ struct MusicModelTrack
     MusicModelArtist* artist;
     MusicModelAlbum* album;
 };
+
+#include "musicmodel.moc"
 
 static bool trackLessThan(const MusicModelTrack* t1, const MusicModelTrack* t2)
 {
@@ -59,6 +81,9 @@ MusicModel::MusicModel(QObject *parent)
     roles[Qt::UserRole + 2] = "musicid";
     roles[Qt::UserRole + 3] = "musicindex";
     setRoleNames(roles);
+
+    qmlRegisterType<MusicModelArtist>("MusicModelArtist", 1, 0, "MusicModelArtist");
+    qmlRegisterType<MusicModelAlbum>("MusicModelAlbum", 1, 0, "MusicModelAlbum");
 }
 
 MusicModel::~MusicModel()
@@ -252,14 +277,19 @@ void MusicModel::removeTrack(int trackid)
     delete artist;
 }
 
-int MusicModel::currentArtist() const
+MusicModelArtist* MusicModel::currentArtist() const
+{
+    return m_artist;
+}
+
+int MusicModel::currentArtistId() const
 {
     if (m_artist)
         return m_artist->id;
     return m_artistEmpty ? 0 : -1;
 }
 
-void MusicModel::setCurrentArtist(int artist)
+void MusicModel::setCurrentArtistId(int artist)
 {
     MusicModelArtist* oldartist = m_artist;
     MusicModelAlbum* oldalbum = m_album;
@@ -288,14 +318,19 @@ void MusicModel::setCurrentArtist(int artist)
         reset();
 }
 
-int MusicModel::currentAlbum() const
+MusicModelAlbum* MusicModel::currentAlbum() const
+{
+    return m_album;
+}
+
+int MusicModel::currentAlbumId() const
 {
     if (m_album)
         return m_album->id;
     return m_albumEmpty ? 0 : -1;
 }
 
-void MusicModel::setCurrentAlbum(int album)
+void MusicModel::setCurrentAlbumId(int album)
 {
     if (m_artist == 0)
         return;

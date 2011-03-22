@@ -129,20 +129,36 @@ Rectangle {
             list.currentIndex = -1
 
             if (currentMouseButton === Qt.RightButton) {
-                if (musicModel.currentAlbum !== -1)
-                    musicModel.currentAlbum = -1
-                else if (musicModel.currentArtist !== -1)
-                    musicModel.currentArtist = -1
+                if (musicModel.currentAlbumId !== -1)
+                    musicModel.currentAlbumId = -1
+                else if (musicModel.currentArtistId !== -1)
+                    musicModel.currentArtistId = -1
+
+                if (musicModel.currentArtistId > 0) {
+                    if (musicModel.currentAlbumId > 0)
+                        audioPlayer.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                    else
+                        audioPlayer.windowTitle = musicModel.currentArtist.name
+                } else
+                    audioPlayer.windowTitle = ""
 
                 fadeIn.start()
 
                 return
             }
 
-            if (musicModel.currentArtist === -1)
-                musicModel.currentArtist = currentMusicId
-            else if (musicModel.currentAlbum === -1)
-                musicModel.currentAlbum = currentMusicId
+            if (musicModel.currentArtistId === -1)
+                musicModel.currentArtistId = currentMusicId
+            else if (musicModel.currentAlbumId === -1)
+                musicModel.currentAlbumId = currentMusicId
+
+            if (musicModel.currentArtistId > 0) {
+                if (musicModel.currentAlbumId > 0)
+                    audioPlayer.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                else
+                    audioPlayer.windowTitle = musicModel.currentArtist.name
+            } else
+                audioPlayer.windowTitle = ""
 
             var cur = musicModel.positionFromFilename(audioPlayer.filename)
             if (cur !== -1)
@@ -199,7 +215,7 @@ Rectangle {
                         }
 
                         onClicked: {
-                            if (mouse.button === Qt.LeftButton && musicModel.currentArtist !== -1 && musicModel.currentAlbum !== -1) {
+                            if (mouse.button === Qt.LeftButton && musicModel.currentArtistId !== -1 && musicModel.currentAlbumId !== -1) {
                                 playFile(musicModel.filenameById(musicid))
                                 return
                             }

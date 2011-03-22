@@ -5,25 +5,29 @@
 #include <QAbstractTableModel>
 #include <QList>
 
-struct MusicModelArtist;
-struct MusicModelAlbum;
-struct MusicModelTrack;
+class MusicModelArtist;
+class MusicModelAlbum;
+class MusicModelTrack;
 
 class MusicModel : public QAbstractTableModel
 {
     Q_OBJECT
 
-    Q_PROPERTY(int currentArtist READ currentArtist WRITE setCurrentArtist)
-    Q_PROPERTY(int currentAlbum READ currentAlbum WRITE setCurrentAlbum)
+    Q_PROPERTY(int currentArtistId READ currentArtistId WRITE setCurrentArtistId)
+    Q_PROPERTY(int currentAlbumId READ currentAlbumId WRITE setCurrentAlbumId)
+    Q_PROPERTY(MusicModelArtist* currentArtist READ currentArtist)
+    Q_PROPERTY(MusicModelAlbum* currentAlbum READ currentAlbum)
 public:
     MusicModel(QObject *parent = 0);
     ~MusicModel();
 
-    int currentArtist() const;
-    void setCurrentArtist(int artist);
+    MusicModelArtist* currentArtist() const;
+    int currentArtistId() const;
+    void setCurrentArtistId(int artist);
 
-    int currentAlbum() const;
-    void setCurrentAlbum(int album);
+    MusicModelAlbum* currentAlbum() const;
+    int currentAlbumId() const;
+    void setCurrentAlbumId(int album);
 
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     QVariant data(const QModelIndex& index, int role) const;

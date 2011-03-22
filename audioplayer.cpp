@@ -4,6 +4,8 @@
 #include "codecs/codec.h"
 #include "codecs/codecs.h"
 #include "medialibrary.h"
+#include <QApplication>
+#include <QWidget>
 #include <QDebug>
 
 AudioPlayer::AudioPlayer(QObject *parent) :
@@ -41,6 +43,16 @@ void AudioPlayer::setAudioDevice(AudioDevice *device)
 
     delete m_audio;
     m_audio = device;
+}
+
+QString AudioPlayer::windowTitle() const
+{
+    return QApplication::topLevelWidgets().first()->windowTitle();
+}
+
+void AudioPlayer::setWindowTitle(const QString &title)
+{
+    QApplication::topLevelWidgets().first()->setWindowTitle(title);
 }
 
 void AudioPlayer::tagReady(const Tag &tag)
