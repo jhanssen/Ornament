@@ -222,6 +222,7 @@ void MusicModel::removeTrack(int trackid)
 
     // Check if this was the last track of the album
     if (!album->tracks.isEmpty()) {
+        // This should never be the currently played track so I'm not considering that here.
         delete track;
         return;
     }
@@ -252,6 +253,8 @@ void MusicModel::removeTrack(int trackid)
     // Check if this was the last album of the artist
     if (!artist->albums.isEmpty() && !artist->tracks.isEmpty()) {
         delete track;
+        if (album == m_album)
+            setCurrentAlbumId(-1);
         delete album;
         return;
     }
@@ -273,6 +276,10 @@ void MusicModel::removeTrack(int trackid)
         endRemoveRows();
 
     delete track;
+    if (artist == m_artist)
+        setCurrentArtistId(-1);
+    else if (album == m_album)
+        setCurrentAlbumId(-1);
     delete album;
     delete artist;
 }
