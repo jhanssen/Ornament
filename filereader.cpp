@@ -169,7 +169,7 @@ void FileReaderDevice::jobFinished(IOJob *job)
         m_pending.clear();
         m_pendingTotal = 0;
 
-        if (m_reader == job)
+        if (job && m_reader == job)
             job->deleteLater();
     }
 }
