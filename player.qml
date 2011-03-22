@@ -215,9 +215,13 @@ Rectangle {
                         }
 
                         onClicked: {
-                            if (mouse.button === Qt.LeftButton && musicModel.currentArtistId !== -1 && musicModel.currentAlbumId !== -1) {
-                                playFile(musicModel.filenameById(musicid))
-                                return
+                            if (mouse.button === Qt.LeftButton) {
+                                // -1 is no artist or album selected, 0 is all tracks for the album/artist selected
+                                if ((musicModel.currentArtistId !== -1 && musicModel.currentAlbumId !== -1)
+                                    || (musicModel.currentArtistId === 0 && musicModel.currentAlbumId === -1)) {
+                                    playFile(musicModel.filenameById(musicid))
+                                    return
+                                }
                             }
 
                             list.currentMusicId = musicid
