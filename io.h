@@ -13,8 +13,6 @@
 
 class IO;
 
-typedef QHash<QByteArray, QVariant> PropertyHash;
-
 class IOJob : public QObject
 {
     Q_OBJECT
@@ -33,9 +31,11 @@ protected:
     bool event(QEvent* event);
 
     void setJobNumber(int no);
+    void moveToOrigin();
 
 private:
     int m_no;
+    QThread* m_origin;
 
     friend class IO;
 };
@@ -50,11 +50,7 @@ public:
 
     void stop();
 
-    template<typename T>
-    bool registerJob();
-
-    template<typename T>
-    int postJob(const PropertyHash& properties = PropertyHash());
+    int startJob(IOJob* job);
 
 protected:
     void run();
@@ -71,7 +67,6 @@ private slots:
 private:
     IO(QObject *parent = 0);
 
-    bool metaObjectForClassname(const QByteArray& classname, QMetaObject& meta);
     int nextJobNumber();
 
 private:
@@ -80,57 +75,7 @@ private:
     QMutex m_mutex;
 
     int m_jobcount;
-    QHash<QByteArray, QMetaObject> m_registered;
     QHash<int, IOJob*> m_jobs;
 };
-
-class JobEvent : public QEvent
-{
-public:
-    enum Type { JobType = QEvent::User + 1 };
-
-    JobEvent(const QByteArray& classname, int no, const PropertyHash& properties);
-
-    QByteArray m_classname;
-    int m_no;
-    PropertyHash m_properties;
-};
-
-template<typename T>
-bool IO::registerJob()
-{
-    QMutexLocker locker(&m_mutex);
-
-    QByteArray classname(T::staticMetaObject.className());
-    if (m_registered.contains(classname))
-        return false;
-
-    // Check if the class inherits IOJob
-    const QMetaObject* super = T::staticMetaObject.superClass();
-    while (super) {
-        if (qstrcmp(super->className(), "IOJob") == 0)
-            break;
-        super = super->superClass();
-    }
-    if (!super)
-        return false;
-
-    m_registered[classname] = T::staticMetaObject;
-    return true;
-}
-
-template<typename T>
-int IO::postJob(const PropertyHash& properties)
-{
-    QByteArray classname(T::staticMetaObject.className());
-
-    int no = nextJobNumber();
-    JobEvent* event = new JobEvent(classname, no, properties);
-    QCoreApplication::postEvent(this, event);
-
-    //qDebug() << "=== job posted" << no;
-
-    return no;
-}
 
 #endif // IO_H

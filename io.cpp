@@ -1,8 +1,18 @@
 #include "io.h"
 #include <QDebug>
 
-JobEvent::JobEvent(const QByteArray &classname, int no, const PropertyHash& properties)
-    : QEvent(static_cast<QEvent::Type>(JobType)), m_classname(classname), m_no(no), m_properties(properties)
+class JobEvent : public QEvent
+{
+public:
+    enum Type { JobType = QEvent::User + 1 };
+
+    JobEvent(IOJob* job);
+
+    IOJob* m_job;
+};
+
+JobEvent::JobEvent(IOJob* job)
+    : QEvent(static_cast<QEvent::Type>(JobType)), m_job(job)
 {
 }
 
@@ -20,7 +30,7 @@ StopEvent::StopEvent()
 }
 
 IOJob::IOJob(QObject *parent)
-    : QObject(parent), m_no(0)
+    : QObject(parent), m_no(0), m_origin(QThread::currentThread())
 {
 }
 
@@ -50,6 +60,11 @@ bool IOJob::event(QEvent *event)
     return QObject::event(event);
 }
 
+void IOJob::moveToOrigin()
+{
+    moveToThread(m_origin);
+}
+
 IO* IO::s_inst = 0;
 
 IO::IO(QObject *parent)
@@ -71,62 +86,13 @@ void IO::init()
     }
 }
 
-bool IO::metaObjectForClassname(const QByteArray& classname, QMetaObject& meta)
-{
-    QMutexLocker locker(&m_mutex);
-
-    if (!m_registered.contains(classname))
-        return false;
-
-    meta = m_registered.value(classname);
-
-    return true;
-}
-
 bool IO::event(QEvent *event)
 {
     if (event->type() == static_cast<QEvent::Type>(JobEvent::JobType)) {
         JobEvent* jobevent = static_cast<JobEvent*>(event);
-        QByteArray classname = jobevent->m_classname;
+        IOJob* job = jobevent->m_job;
 
-        QMetaObject metaobj;
-        if (!metaObjectForClassname(classname, metaobj)) {
-            emit error(QLatin1String("Unknown classname: ") + classname);
-            return true;
-        }
-
-        if (metaobj.constructorCount() == 0) {
-            emit error(QLatin1String("No invokable constructor: ") + classname);
-            return true;
-        }
-
-        QObject* instance = metaobj.newInstance(Q_ARG(QObject*, 0));
-        if (!instance) {
-            emit error(QLatin1String("Not able to create new instance: ") + classname);
-            return true;
-        }
-
-        IOJob* job = qobject_cast<IOJob*>(instance);
-        if (!job) {
-            emit error(QLatin1String("Instance is not an IOJob: ") + classname + QLatin1String(", ") + QLatin1String(job->metaObject()->className()));
-            delete instance;
-            return true;
-        }
-
-        int no = jobevent->m_no;
-
-        job->setJobNumber(no);
-        PropertyHash props = jobevent->m_properties;
-        if (!props.isEmpty()) {
-            PropertyHash::ConstIterator it = props.begin();
-            PropertyHash::ConstIterator itend = props.end();
-            while (it != itend) {
-                job->setProperty(it.key().constData(), it.value());
-                ++it;
-            }
-        }
-
-        m_jobs[no] = job;
+        m_jobs[job->jobNumber()] = job;
         connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()));
 
         qDebug() << "=== new job success!" << job->jobNumber() << job;
@@ -163,9 +129,10 @@ void IO::localJobFinished()
         return;
     }
 
-    emit jobFinished(job);
     m_jobs.remove(job->jobNumber());
-    job->deleteLater();
+    job->moveToOrigin();
+
+    emit jobFinished(job);
 }
 
 int IO::nextJobNumber()
@@ -175,6 +142,17 @@ int IO::nextJobNumber()
         ++no;
     m_jobcount = no + 1;
     return no;
+}
+
+int IO::startJob(IOJob *job)
+{
+    int next = nextJobNumber();
+
+    job->setJobNumber(next);
+    job->moveToThread(this);
+    QCoreApplication::postEvent(this, new JobEvent(job));
+
+    return next;
 }
 
 void IO::stop()

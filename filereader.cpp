@@ -10,11 +10,6 @@ FileReader::FileReader(QObject *parent)
 {
 }
 
-void FileReader::registerType()
-{
-    IO::instance()->registerJob<FileReader>();
-}
-
 void FileReader::start()
 {
     QMetaObject::invokeMethod(this, "startJob");
@@ -141,9 +136,9 @@ bool FileReaderDevice::open(OpenMode mode)
         m_pendingTotal = 0;
     }
 
-    PropertyHash props;
-    props["filename"] = m_filename;
-    m_jobid = IO::instance()->postJob<FileReader>(props);
+    FileReader* job = new FileReader;
+    job->setFilename(m_filename);
+    m_jobid = IO::instance()->startJob(job);
 
     return true;
 }
@@ -173,6 +168,9 @@ void FileReaderDevice::jobFinished(IOJob *job)
         m_reader = 0;
         m_pending.clear();
         m_pendingTotal = 0;
+
+        if (m_reader == job)
+            job->deleteLater();
     }
 }
 

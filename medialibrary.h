@@ -69,6 +69,7 @@ signals:
 
 private slots:
     void jobCreated(IOJob* job);
+    void jobFinished(IOJob* job);
 
 private:
     MediaLibrary(QObject *parent = 0);
@@ -79,6 +80,7 @@ private:
     PathSet m_updatedPaths;
 
     QSet<int> m_pendingJobs;
+    QSet<IOJob*> m_jobs;
 };
 
 #endif // MEDIALIBRARY_H

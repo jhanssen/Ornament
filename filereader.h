@@ -14,8 +14,6 @@ class FileReader : public IOJob
 public:
     Q_INVOKABLE FileReader(QObject *parent = 0);
 
-    static void registerType();
-
     void read(int size);
 
     QString filename() const;
