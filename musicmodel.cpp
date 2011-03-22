@@ -527,6 +527,18 @@ int MusicModel::positionFromFilename(const QString &filename) const
     return it.value()->pos;
 }
 
+QString MusicModel::tracknameFromFilename(const QString &filename) const
+{
+    if (filename.isEmpty())
+        return QString();
+
+    QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
+    if (it == m_tracksFile.end())
+        return QString();
+
+    return it.value()->track;
+}
+
 int MusicModel::trackCount() const
 {
     return m_tracksPos.size();

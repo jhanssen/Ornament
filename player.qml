@@ -4,6 +4,11 @@ import AudioPlayer 1.0
 import MusicModel 1.0
 
 Rectangle {
+    id: topLevel
+
+    property string songTitle: ""
+    property string windowTitle: ""
+
     SystemPalette { id: activePalette }
 
     function playFile(filename) {
@@ -49,16 +54,28 @@ Rectangle {
         id: audioPlayer
 
         onStateChanged: {
+            topLevel.songTitle = ""
+
             if (state === AudioPlayer.Playing) {
                 playButton.image = "icons/pause.svg"
 
                 var cur = musicModel.positionFromFilename(audioPlayer.filename)
                 if (cur !== -1)
                     list.currentIndex = cur;
+
+                topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
                 playNext()
             } else
                 playButton.image = "icons/play.svg"
+
+            var title = topLevel.windowTitle
+            if (topLevel.songTitle.length > 0) {
+                if (title.length > 0)
+                    title += " "
+                title += "(P: " + topLevel.songTitle + ")"
+            }
+            audioPlayer.windowTitle = title
         }
     }
 
@@ -128,6 +145,8 @@ Rectangle {
 
             list.currentIndex = -1
 
+            var title
+
             if (currentMouseButton === Qt.RightButton) {
                 if (musicModel.currentAlbumId !== -1)
                     musicModel.currentAlbumId = -1
@@ -136,11 +155,19 @@ Rectangle {
 
                 if (musicModel.currentArtistId > 0) {
                     if (musicModel.currentAlbumId > 0)
-                        audioPlayer.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                        topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
                     else
-                        audioPlayer.windowTitle = musicModel.currentArtist.name
+                        topLevel.windowTitle = musicModel.currentArtist.name
                 } else
-                    audioPlayer.windowTitle = ""
+                    topLevel.windowTitle = ""
+
+                title = topLevel.windowTitle
+                if (topLevel.songTitle.length > 0) {
+                    if (title.length > 0)
+                        title += " "
+                    title += "(P: " + topLevel.songTitle + ")"
+                }
+                audioPlayer.windowTitle = title
 
                 fadeIn.start()
 
@@ -154,11 +181,19 @@ Rectangle {
 
             if (musicModel.currentArtistId > 0) {
                 if (musicModel.currentAlbumId > 0)
-                    audioPlayer.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                    topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
                 else
-                    audioPlayer.windowTitle = musicModel.currentArtist.name
+                    topLevel.windowTitle = musicModel.currentArtist.name
             } else
-                audioPlayer.windowTitle = ""
+                topLevel.windowTitle = ""
+
+            title = topLevel.windowTitle
+            if (topLevel.songTitle.length > 0) {
+                if (title.length > 0)
+                    title += " "
+                title += "(P: " + topLevel.songTitle + ")"
+            }
+            audioPlayer.windowTitle = title
 
             var cur = musicModel.positionFromFilename(audioPlayer.filename)
             if (cur !== -1)
