@@ -137,8 +137,8 @@ void IO::localJobFinished()
 
 int IO::nextJobNumber()
 {
-    int no = m_jobcount ? m_jobcount : 1; // jobcount == 0 is reserved
-    while (m_jobs.contains(no))
+    int no = m_jobcount;
+    while (m_jobs.contains(no) || no == 0) // 0 is a reserved number
         ++no;
     m_jobcount = no + 1;
     return no;
