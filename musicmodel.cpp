@@ -34,11 +34,21 @@ struct MusicModelTrack
 
 static bool trackLessThan(const MusicModelTrack* t1, const MusicModelTrack* t2)
 {
-    return t1->trackno < t2->trackno;
+    int less = t1->artist->artist.compare(t2->artist->artist);
+    if (less)
+        return less < 0;
+
+    less = t1->album->album.compare(t2->album->album);
+    if (less)
+        return less < 0;
+
+    if (t1->trackno != t2->trackno)
+        return t1->trackno < t2->trackno;
+    return t1->track < t2->track;
 }
 
 MusicModel::MusicModel(QObject *parent)
-    : QAbstractTableModel(parent), m_artist(0), m_album(0)
+    : QAbstractTableModel(parent), m_artist(0), m_album(0), m_artistEmpty(false), m_albumEmpty(false)
 {
     connect(MediaLibrary::instance(), SIGNAL(artist(Artist)), this, SLOT(updateArtist(Artist)));
     connect(MediaLibrary::instance(), SIGNAL(trackRemoved(int)), this, SLOT(removeTrack(int)));
@@ -236,7 +246,7 @@ int MusicModel::currentArtist() const
 {
     if (m_artist)
         return m_artist->id;
-    return 0;
+    return m_artistEmpty ? 0 : -1;
 }
 
 void MusicModel::setCurrentArtist(int artist)
@@ -248,13 +258,23 @@ void MusicModel::setCurrentArtist(int artist)
     m_tracksFile.clear();
 
     if (artist > 0) {
+        m_artistEmpty = false;
         if (m_artists.contains(artist))
             m_artist = m_artists[artist];
         else
             m_artist = 0;
-    } else
+    } else {
+        m_artistEmpty = (artist == 0);
         m_artist = 0;
+    }
+    m_albumEmpty = false;
     m_album = 0;
+
+    if (m_artistEmpty) {
+        buildTracks();
+        reset();
+        return;
+    }
 
     if (m_artist != oldartist || m_album != oldalbum)
         reset();
@@ -264,7 +284,7 @@ int MusicModel::currentAlbum() const
 {
     if (m_album)
         return m_album->id;
-    return 0;
+    return m_albumEmpty ? 0 : -1;
 }
 
 void MusicModel::setCurrentAlbum(int album)
@@ -278,14 +298,23 @@ void MusicModel::setCurrentAlbum(int album)
     m_tracksFile.clear();
 
     if (album > 0) {
+        m_albumEmpty = false;
         if (m_artist->albums.contains(album)) {
             m_album = m_artist->albums[album];
 
             buildTracks();
         } else
             m_album = 0;
-    } else
+    } else {
+        m_albumEmpty = (album == 0);
         m_album = 0;
+    }
+
+    if (m_albumEmpty) {
+        buildTracks();
+        reset();
+        return;
+    }
 
     if (m_album != oldalbum)
         reset();
@@ -293,11 +322,27 @@ void MusicModel::setCurrentAlbum(int album)
 
 void MusicModel::buildTracks()
 {
-    if (!m_artist || !m_album)
+    if (!m_artist && !m_artistEmpty)
+        return;
+    if (!m_album && !m_albumEmpty && !m_artistEmpty)
         return;
 
-    QHash<int, MusicModelTrack*>::ConstIterator it = m_album->tracks.begin();
-    QHash<int, MusicModelTrack*>::ConstIterator itend = m_album->tracks.end();
+    QHash<int, MusicModelTrack*>::ConstIterator it;
+    QHash<int, MusicModelTrack*>::ConstIterator itend;
+    if (m_album) {
+        it = m_album->tracks.begin();
+        itend = m_album->tracks.end();
+    } else if (m_artist) {
+        it = m_artist->tracks.begin();
+        itend = m_artist->tracks.end();
+    } else {
+        it = m_tracks.begin();
+        it = m_tracks.end();
+    }
+
+    m_tracksPos.clear();
+    m_tracksFile.clear();
+
     while (it != itend) {
         m_tracksPos.append(*it);
         m_tracksFile[(*it)->filename] = *it;
@@ -305,7 +350,7 @@ void MusicModel::buildTracks()
         ++it;
     }
 
-    // Sort by track number
+    // Sort by artist, album, track number, track (in that order)
     qSort(m_tracksPos.begin(), m_tracksPos.end(), trackLessThan);
 
     // Initialize the pos(ition) variable

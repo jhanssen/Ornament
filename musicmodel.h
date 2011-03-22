@@ -47,6 +47,8 @@ private:
 private:
     MusicModelArtist* m_artist;
     MusicModelAlbum* m_album;
+    bool m_artistEmpty;
+    bool m_albumEmpty;
 
     QHash<int, MusicModelArtist*> m_artists;
     QHash<int, MusicModelAlbum*> m_albums;

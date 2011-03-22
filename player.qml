@@ -129,19 +129,19 @@ Rectangle {
             list.currentIndex = -1
 
             if (currentMouseButton === Qt.RightButton) {
-                if (musicModel.currentAlbum !== 0)
-                    musicModel.currentAlbum = 0
-                else if (musicModel.currentArtist !== 0)
-                    musicModel.currentArtist = 0
+                if (musicModel.currentAlbum !== -1)
+                    musicModel.currentAlbum = -1
+                else if (musicModel.currentArtist !== -1)
+                    musicModel.currentArtist = -1
 
                 fadeIn.start()
 
                 return
             }
 
-            if (musicModel.currentArtist === 0)
+            if (musicModel.currentArtist === -1)
                 musicModel.currentArtist = currentMusicId
-            else if (musicModel.currentAlbum === 0)
+            else if (musicModel.currentAlbum === -1)
                 musicModel.currentAlbum = currentMusicId
 
             var cur = musicModel.positionFromFilename(audioPlayer.filename)
@@ -199,7 +199,7 @@ Rectangle {
                         }
 
                         onClicked: {
-                            if (mouse.button === Qt.LeftButton && musicModel.currentArtist !== 0 && musicModel.currentAlbum !== 0) {
+                            if (mouse.button === Qt.LeftButton && musicModel.currentArtist !== -1 && musicModel.currentAlbum !== -1) {
                                 playFile(musicModel.filenameById(musicid))
                                 return
                             }
