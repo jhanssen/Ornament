@@ -63,6 +63,7 @@ Rectangle {
                 if (cur !== -1)
                     list.currentIndex = cur;
 
+                // ### this is not the best way of getting the current track name I'm sure
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
                 playNext()
@@ -148,6 +149,8 @@ Rectangle {
             var title
 
             if (currentMouseButton === Qt.RightButton) {
+                // ### a lot of the code for Qt.RightButton here is duplicated below. Needs a fix!
+
                 if (musicModel.currentAlbumId !== -1)
                     musicModel.currentAlbumId = -1
                 else if (musicModel.currentArtistId !== -1)
