@@ -40,7 +40,7 @@ private slots:
     void removeTrack(int trackid);
 
 private:
-    QVariant musicData(const QModelIndex& index, int role) const;
+    QVariant musicData(const QModelIndex& index, int role, bool hasAllEntry) const;
 
     void buildTracks();
 
