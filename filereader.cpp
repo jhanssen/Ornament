@@ -5,17 +5,48 @@
 #define FILEREADERDEVICE_MIN (8192 * 4)
 #define FILEREADERDEVICE_MAX (8192 * 10)
 
-FileReader::FileReader(QObject *parent)
+class FileJob : public IOJob
+{
+    Q_OBJECT
+
+    Q_PROPERTY(QString filename READ filename WRITE setFilename)
+public:
+    Q_INVOKABLE FileJob(QObject *parent = 0);
+
+    void read(int size);
+
+    QString filename() const;
+    void setFilename(const QString& filename);
+
+    void start();
+
+signals:
+    void started();
+    void data(QByteArray* data);
+    void atEnd();
+
+private:
+    Q_INVOKABLE void readData(int size);
+    Q_INVOKABLE void startJob();
+
+private:
+    QString m_filename;
+    QFile m_file;
+};
+
+#include "filereader.moc"
+
+FileJob::FileJob(QObject *parent)
     : IOJob(parent)
 {
 }
 
-void FileReader::start()
+void FileJob::start()
 {
     QMetaObject::invokeMethod(this, "startJob");
 }
 
-void FileReader::startJob()
+void FileJob::startJob()
 {
     m_file.setFileName(filename());
     if (!m_file.open(QFile::ReadOnly))
@@ -24,12 +55,12 @@ void FileReader::startJob()
     emit started();
 }
 
-void FileReader::read(int size)
+void FileJob::read(int size)
 {
     QMetaObject::invokeMethod(this, "readData", Q_ARG(int, size));
 }
 
-void FileReader::readData(int size)
+void FileJob::readData(int size)
 {
     if (!m_file.isOpen()) {
         emit error(QLatin1String("File is not open: ") + filename());
@@ -47,17 +78,17 @@ void FileReader::readData(int size)
     }
 }
 
-QString FileReader::filename() const
+QString FileJob::filename() const
 {
     return m_filename;
 }
 
-void FileReader::setFilename(const QString &filename)
+void FileJob::setFilename(const QString &filename)
 {
     m_filename = filename;
 }
 
-FileReaderDevice::FileReaderDevice(QObject *parent)
+FileReader::FileReader(QObject *parent)
     : QIODevice(parent), m_jobid(0), m_atend(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
@@ -65,7 +96,7 @@ FileReaderDevice::FileReaderDevice(QObject *parent)
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
 
-FileReaderDevice::FileReaderDevice(const QString &filename, QObject *parent)
+FileReader::FileReader(const QString &filename, QObject *parent)
     : QIODevice(parent), m_filename(filename), m_jobid(0), m_atend(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
@@ -73,33 +104,33 @@ FileReaderDevice::FileReaderDevice(const QString &filename, QObject *parent)
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
 
-FileReaderDevice::~FileReaderDevice()
+FileReader::~FileReader()
 {
     close();
 }
 
-void FileReaderDevice::ioError(const QString &message)
+void FileReader::ioError(const QString &message)
 {
     qDebug() << "ioerror" << message;
     close();
 }
 
-void FileReaderDevice::setFilename(const QString &filename)
+void FileReader::setFilename(const QString &filename)
 {
     m_filename = filename;
 }
 
-bool FileReaderDevice::isSequential() const
+bool FileReader::isSequential() const
 {
     return true;
 }
 
-qint64 FileReaderDevice::bytesAvailable() const
+qint64 FileReader::bytesAvailable() const
 {
     return m_buffer.size();
 }
 
-void FileReaderDevice::close()
+void FileReader::close()
 {
     if (!isOpen())
         return;
@@ -118,7 +149,7 @@ void FileReaderDevice::close()
     }
 }
 
-bool FileReaderDevice::open(OpenMode mode)
+bool FileReader::open(OpenMode mode)
 {
     if (m_filename.isEmpty())
         return false;
@@ -137,14 +168,14 @@ bool FileReaderDevice::open(OpenMode mode)
         m_pendingTotal = 0;
     }
 
-    FileReader* job = new FileReader;
+    FileJob* job = new FileJob;
     job->setFilename(m_filename);
     m_jobid = IO::instance()->startJob(job);
 
     return true;
 }
 
-void FileReaderDevice::jobCreated(IOJob *job)
+void FileReader::jobCreated(IOJob *job)
 {
     if (!m_reader && job->jobNumber() == m_jobid) {
         m_jobid = 0;
@@ -160,11 +191,11 @@ void FileReaderDevice::jobCreated(IOJob *job)
         connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         connect(*m_reader, SIGNAL(error(QString)), this, SLOT(readerError(QString)));
 
-        m_reader.as<FileReader>()->start();
+        m_reader.as<FileJob>()->start();
     }
 }
 
-void FileReaderDevice::jobFinished(IOJob *job)
+void FileReader::jobFinished(IOJob *job)
 {
     if ((!m_reader && !m_jobid) || m_reader == job) {
         m_jobid = 0;
@@ -177,20 +208,20 @@ void FileReaderDevice::jobFinished(IOJob *job)
     IOJob::deleteIfNeeded(job);
 }
 
-void FileReaderDevice::readerStarted()
+void FileReader::readerStarted()
 {
     if (sender() != m_reader)
         return;
 
     int bsz = m_buffer.size();
     while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX) {
-        m_reader.as<FileReader>()->read(FILEREADERDEVICE_READ);
+        m_reader.as<FileJob>()->read(FILEREADERDEVICE_READ);
         m_pendingTotal += FILEREADERDEVICE_READ;
         m_pending.push_back(FILEREADERDEVICE_READ);
     }
 }
 
-void FileReaderDevice::readerError(const QString &message)
+void FileReader::readerError(const QString &message)
 {
     QObject* from = sender();
     if (from && from != m_reader)
@@ -207,7 +238,7 @@ void FileReaderDevice::readerError(const QString &message)
     m_atend = true;
 }
 
-void FileReaderDevice::readerData(QByteArray *data)
+void FileReader::readerData(QByteArray *data)
 {
     QObject* from = sender();
     if (from && from != m_reader) {
@@ -226,7 +257,7 @@ void FileReaderDevice::readerData(QByteArray *data)
     m_buffer.add(data);
 }
 
-void FileReaderDevice::readerAtEnd()
+void FileReader::readerAtEnd()
 {
     QObject* from = sender();
     if (from && from != m_reader)
@@ -235,12 +266,12 @@ void FileReaderDevice::readerAtEnd()
     m_atend = true;
 }
 
-bool FileReaderDevice::atEnd() const
+bool FileReader::atEnd() const
 {
     return (m_atend && m_buffer.isEmpty());
 }
 
-qint64 FileReaderDevice::writeData(const char *data, qint64 len)
+qint64 FileReader::writeData(const char *data, qint64 len)
 {
     Q_UNUSED(data)
     Q_UNUSED(len)
@@ -248,7 +279,7 @@ qint64 FileReaderDevice::writeData(const char *data, qint64 len)
     return 0;
 }
 
-qint64 FileReaderDevice::readData(char *data, qint64 maxlen)
+qint64 FileReader::readData(char *data, qint64 maxlen)
 {
     if (m_atend && m_buffer.isEmpty()) {
         close();
@@ -266,7 +297,7 @@ qint64 FileReaderDevice::readData(char *data, qint64 maxlen)
     int bsz = m_buffer.size();
     if (bsz + m_pendingTotal < FILEREADERDEVICE_MIN) {
         do {
-            m_reader.as<FileReader>()->read(FILEREADERDEVICE_READ);
+            m_reader.as<FileJob>()->read(FILEREADERDEVICE_READ);
             m_pendingTotal += FILEREADERDEVICE_READ;
             m_pending.push_back(FILEREADERDEVICE_READ);
         } while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX);

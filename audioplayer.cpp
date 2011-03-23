@@ -106,8 +106,8 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
-        FileReaderDevice* file = new FileReaderDevice(m_filename);
-        if (!file->open(FileReaderDevice::ReadOnly)) {
+        FileReader* file = new FileReader(m_filename);
+        if (!file->open(FileReader::ReadOnly)) {
             delete codec;
             delete file;
 

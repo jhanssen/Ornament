@@ -6,42 +6,13 @@
 #include <QFile>
 #include <QVector>
 
-class FileReader : public IOJob
-{
-    Q_OBJECT
-
-    Q_PROPERTY(QString filename READ filename WRITE setFilename)
-public:
-    Q_INVOKABLE FileReader(QObject *parent = 0);
-
-    void read(int size);
-
-    QString filename() const;
-    void setFilename(const QString& filename);
-
-    void start();
-
-signals:
-    void started();
-    void data(QByteArray* data);
-    void atEnd();
-
-private:
-    Q_INVOKABLE void readData(int size);
-    Q_INVOKABLE void startJob();
-
-private:
-    QString m_filename;
-    QFile m_file;
-};
-
-class FileReaderDevice : public QIODevice
+class FileReader : public QIODevice
 {
     Q_OBJECT
 public:
-    FileReaderDevice(QObject* parent = 0);
-    FileReaderDevice(const QString& filename, QObject* parent = 0);
-    ~FileReaderDevice();
+    FileReader(QObject* parent = 0);
+    FileReader(const QString& filename, QObject* parent = 0);
+    ~FileReader();
 
     void setFilename(const QString& filename);
 
