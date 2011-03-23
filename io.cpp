@@ -29,9 +29,22 @@ StopEvent::StopEvent()
 {
 }
 
+QMutex IOJob::m_deletedMutex;
+QSet<IOJob*> IOJob::m_deleted;
+
 IOJob::IOJob(QObject *parent)
     : QObject(parent), m_no(0), m_origin(QThread::currentThread())
 {
+    QMutexLocker locker(&m_deletedMutex);
+
+    m_deleted.remove(this);
+}
+
+IOJob::~IOJob()
+{
+    QMutexLocker locker(&m_deletedMutex);
+
+    m_deleted.insert(this);
 }
 
 void IOJob::setJobNumber(int no)
@@ -42,6 +55,30 @@ void IOJob::setJobNumber(int no)
 int IOJob::jobNumber() const
 {
     return m_no;
+}
+
+bool IOJob::ref()
+{
+    return m_ref.ref();
+}
+
+bool IOJob::deref()
+{
+    return m_ref.deref();
+}
+
+void IOJob::deleteIfNeeded(IOJob *job)
+{
+    QMutexLocker locker(&m_deletedMutex);
+
+    if (m_deleted.contains(job))
+        return;
+
+    if (!job->m_ref) {
+        m_deleted.insert(job);
+
+        QMetaObject::invokeMethod(job, "deleteLater");
+    }
 }
 
 void IOJob::stop()
@@ -65,12 +102,102 @@ void IOJob::moveToOrigin()
     moveToThread(m_origin);
 }
 
+IOPtr::IOPtr(IOJob* job)
+    : m_job(job)
+{
+    if (m_job)
+        m_job->ref();
+}
+
+IOPtr::IOPtr(const IOPtr& ptr)
+    : m_job(ptr.m_job)
+{
+    if (m_job)
+        m_job->ref();
+}
+
+IOPtr::~IOPtr()
+{
+    if (m_job)
+        m_job->deref();
+}
+
+IOPtr& IOPtr::operator=(const IOPtr& ptr)
+{
+    if (m_job)
+        m_job->deref();
+
+    m_job = ptr.m_job;
+    if (m_job)
+        m_job->ref();
+
+    return *this;
+}
+
+IOPtr& IOPtr::operator=(IOJob* job)
+{
+    if (m_job)
+        m_job->deref();
+
+    m_job = job;
+    if (m_job)
+        m_job->ref();
+
+    return *this;
+}
+
+bool IOPtr::clear()
+{
+    if (m_job) {
+        m_job->deref();
+        m_job = 0;
+        return true;
+    }
+
+    m_job = 0;
+    return false;
+}
+
+IOPtr::operator bool() const
+{
+    return (m_job != 0);
+}
+
+IOJob* IOPtr::operator->() const
+{
+    return m_job;
+}
+
+IOJob* IOPtr::operator*() const
+{
+    return m_job;
+}
+
+class IOJobFinisher : public QObject
+{
+    Q_OBJECT
+public:
+    IOJobFinisher(QObject* parent = 0);
+
+public slots:
+    void jobFinished(IOJob* job);
+};
+
+#include "io.moc"
+
 IO* IO::s_inst = 0;
 
 IO::IO(QObject *parent)
-    : QThread(parent), m_jobcount(1)
+    : QThread(parent), m_jobFinisher(new IOJobFinisher), m_jobcount(1)
 {
     moveToThread(this);
+
+    connect(this, SIGNAL(jobFinished(IOJob*)), m_jobFinisher, SLOT(jobFinished(IOJob*)), Qt::QueuedConnection);
+}
+
+IO::~IO()
+{
+    delete m_jobFinisher;
 }
 
 IO* IO::instance()
@@ -93,7 +220,7 @@ bool IO::event(QEvent *event)
         IOJob* job = jobevent->m_job;
 
         m_jobs[job->jobNumber()] = job;
-        connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()));
+        connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()), Qt::DirectConnection);
 
         qDebug() << "=== new job success!" << job->jobNumber() << job;
 
@@ -159,4 +286,14 @@ void IO::stop()
 {
     StopEvent* event = new StopEvent;
     QCoreApplication::postEvent(this, event);
+}
+
+IOJobFinisher::IOJobFinisher(QObject *parent)
+    : QObject(parent)
+{
+}
+
+void IOJobFinisher::jobFinished(IOJob* job)
+{
+    IOJob::deleteIfNeeded(job);
 }

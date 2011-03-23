@@ -73,7 +73,7 @@ private:
 
     int m_jobid;
     bool m_atend;
-    FileReader* m_reader;
+    IOPtr m_reader;
 
     QVector<int> m_pending;
     qint64 m_pendingTotal;

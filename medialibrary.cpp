@@ -622,13 +622,14 @@ void MediaLibrary::jobCreated(IOJob *job)
         connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
         connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
 
-        m_jobs.insert(media);
+        m_jobs.insert(media, IOPtr(media));
         media->start();
     }
 }
 
 void MediaLibrary::jobFinished(IOJob *job)
 {
-    if (m_jobs.remove(job))
-        job->deleteLater();
+    m_jobs.remove(job);
+
+    IOJob::deleteIfNeeded(job);
 }

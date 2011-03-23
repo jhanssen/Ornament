@@ -13,6 +13,7 @@ typedef QSet<QString> PathSet;
 struct Album;
 struct Track;
 class IOJob;
+class IOPtr;
 
 struct Artist
 {
@@ -80,7 +81,7 @@ private:
     PathSet m_updatedPaths;
 
     QSet<int> m_pendingJobs;
-    QSet<IOJob*> m_jobs;
+    QHash<IOJob*, IOPtr> m_jobs;
 };
 
 #endif // MEDIALIBRARY_H
