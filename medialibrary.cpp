@@ -268,6 +268,7 @@ bool MediaData::updatePaths(MediaJob* job)
                 Track track;
                 track.id = trackid;
                 track.name = tag.data(QLatin1String("title")).toString();
+                track.trackno = tag.data(QLatin1String("track")).toInt();
                 track.filename = file;
 
                 album.tracks[trackid] = track;
@@ -360,8 +361,8 @@ void MediaData::readLibrary(MediaJob* job)
 
                 trackData.id = trackQuery.value(0).toInt();
                 trackData.name = trackQuery.value(1).toString();
-                trackData.filename = trackQuery.value(2).toString();
                 trackData.trackno = trackQuery.value(3).toInt();
+                trackData.filename = trackQuery.value(2).toString();
 
                 albumData.tracks[trackData.id] = trackData;
             }
