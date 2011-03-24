@@ -69,12 +69,12 @@ Rectangle {
                 // ### this is not the best way of getting the current track name I'm sure
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
-                if (!playNext()) {
+                if (!playNext() && artworkContainer.opacity > 0) {
                     artworkFadeOut.start()
                     playButton.image = "icons/play.svg"
                 }
             } else {
-                if (state === AudioPlayer.Stopped)
+                if (state === AudioPlayer.Stopped && artworkContainer.opacity > 0)
                     artworkFadeOut.start()
                 playButton.image = "icons/play.svg"
             }
@@ -136,7 +136,8 @@ Rectangle {
 
         function updateArtwork() {
             artwork.source = "image://artwork/" + audioPlayer.filename
-            artworkFadeIn.start()
+            if (artworkContainer.opacity < 1)
+                artworkFadeIn.start()
         }
 
         Component.onCompleted: {
