@@ -44,8 +44,8 @@ Rectangle {
             playFile(musicModel.filenameByPosition(cur - 1))
     }
 
-    width: 200
-    height: 200
+    width: 350
+    height: 300
 
     color: "#f0f0f0"
 
@@ -74,7 +74,8 @@ Rectangle {
                     playButton.image = "icons/play.svg"
                 }
             } else {
-                artworkFadeOut.start()
+                if (state === AudioPlayer.Stopped)
+                    artworkFadeOut.start()
                 playButton.image = "icons/play.svg"
             }
 
