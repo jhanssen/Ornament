@@ -70,11 +70,11 @@ Rectangle {
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
                 if (!playNext()) {
-                    artworkContainer.opacity = 0
+                    artworkFadeOut.start()
                     playButton.image = "icons/play.svg"
                 }
             } else {
-                artworkContainer.opacity = 0
+                artworkFadeOut.start()
                 playButton.image = "icons/play.svg"
             }
 
@@ -135,7 +135,7 @@ Rectangle {
 
         function updateArtwork() {
             artwork.source = "image://artwork/" + audioPlayer.filename
-            artworkContainer.opacity = 1
+            artworkFadeIn.start()
         }
 
         Component.onCompleted: {
@@ -147,6 +147,9 @@ Rectangle {
 
             anchors.fill: parent
         }
+
+        PropertyAnimation { id: artworkFadeOut; target: artworkContainer; property: "opacity"; from: 1; to: 0; duration: 200 }
+        PropertyAnimation { id: artworkFadeIn; target: artworkContainer; property: "opacity"; from: 0; to: 1; duration: 200 }
     }
 
     Rectangle {
@@ -186,17 +189,72 @@ Rectangle {
 
                 onClicked: {
                     listWrapper.currentMouseButton = mouse.button
-                    fadeOut.start()
+                    fadeList.start()
                 }
             }
 
             SequentialAnimation {
-                id: fadeOut
+                id: fadeList
                 NumberAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
-            }
+                ScriptAction {
+                    script: {
+                        list.currentIndex = -1
 
-            SequentialAnimation {
-                id: fadeIn
+                        var title
+
+                        if (listWrapper.currentMouseButton === Qt.RightButton) {
+                            // ### a lot of the code for Qt.RightButton here is duplicated below. Needs a fix!
+
+                            if (musicModel.currentAlbumId !== -1)
+                                musicModel.currentAlbumId = -1
+                            else if (musicModel.currentArtistId !== -1)
+                                musicModel.currentArtistId = -1
+
+                            if (musicModel.currentArtistId > 0) {
+                                if (musicModel.currentAlbumId > 0)
+                                    topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                                else
+                                    topLevel.windowTitle = musicModel.currentArtist.name
+                            } else
+                                topLevel.windowTitle = ""
+
+                            title = topLevel.windowTitle
+                            if (topLevel.songTitle.length > 0) {
+                                if (title.length > 0)
+                                    title += " "
+                                title += "(P: " + topLevel.songTitle + ")"
+                            }
+                            audioPlayer.windowTitle = title
+
+                            return
+                        }
+
+                        if (musicModel.currentArtistId === -1)
+                            musicModel.currentArtistId = listWrapper.currentMusicId
+                        else if (musicModel.currentAlbumId === -1)
+                            musicModel.currentAlbumId = listWrapper.currentMusicId
+
+                        if (musicModel.currentArtistId > 0) {
+                            if (musicModel.currentAlbumId > 0)
+                                topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                            else
+                                topLevel.windowTitle = musicModel.currentArtist.name
+                        } else
+                            topLevel.windowTitle = ""
+
+                        title = topLevel.windowTitle
+                        if (topLevel.songTitle.length > 0) {
+                            if (title.length > 0)
+                                title += " "
+                            title += "(P: " + topLevel.songTitle + ")"
+                        }
+                        audioPlayer.windowTitle = title
+
+                        var cur = musicModel.positionFromFilename(audioPlayer.filename)
+                        if (cur !== -1)
+                            list.currentIndex = cur;
+                    }
+                }
                 NumberAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
             }
 
@@ -239,78 +297,12 @@ Rectangle {
 
                                 listWrapper.currentMusicId = musicid
                                 listWrapper.currentMouseButton = mouse.button
-                                fadeOut.start()
+                                fadeList.start()
                             }
                         }
                     }
                 }
             }
-        }
-
-        onOpacityChanged: {
-            if (opacity !== 0) {
-                return
-            }
-
-            list.currentIndex = -1
-
-            var title
-
-            if (listWrapper.currentMouseButton === Qt.RightButton) {
-                // ### a lot of the code for Qt.RightButton here is duplicated below. Needs a fix!
-
-                if (musicModel.currentAlbumId !== -1)
-                    musicModel.currentAlbumId = -1
-                else if (musicModel.currentArtistId !== -1)
-                    musicModel.currentArtistId = -1
-
-                if (musicModel.currentArtistId > 0) {
-                    if (musicModel.currentAlbumId > 0)
-                        topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
-                    else
-                        topLevel.windowTitle = musicModel.currentArtist.name
-                } else
-                    topLevel.windowTitle = ""
-
-                title = topLevel.windowTitle
-                if (topLevel.songTitle.length > 0) {
-                    if (title.length > 0)
-                        title += " "
-                    title += "(P: " + topLevel.songTitle + ")"
-                }
-                audioPlayer.windowTitle = title
-
-                fadeIn.start()
-
-                return
-            }
-
-            if (musicModel.currentArtistId === -1)
-                musicModel.currentArtistId = listWrapper.currentMusicId
-            else if (musicModel.currentAlbumId === -1)
-                musicModel.currentAlbumId = listWrapper.currentMusicId
-
-            if (musicModel.currentArtistId > 0) {
-                if (musicModel.currentAlbumId > 0)
-                    topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
-                else
-                    topLevel.windowTitle = musicModel.currentArtist.name
-            } else
-                topLevel.windowTitle = ""
-
-            title = topLevel.windowTitle
-            if (topLevel.songTitle.length > 0) {
-                if (title.length > 0)
-                    title += " "
-                title += "(P: " + topLevel.songTitle + ")"
-            }
-            audioPlayer.windowTitle = title
-
-            var cur = musicModel.positionFromFilename(audioPlayer.filename)
-            if (cur !== -1)
-                list.currentIndex = cur;
-
-            fadeIn.start()
         }
     }
 }
