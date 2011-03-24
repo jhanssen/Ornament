@@ -139,7 +139,6 @@ void FileReader::close()
     m_atend = false;
 
     m_buffer.clear();
-    qDebug() << "close.."  << *m_reader;
     if (m_reader) {
         m_reader->stop();
         m_jobid = 0;

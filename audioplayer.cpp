@@ -13,6 +13,8 @@ AudioPlayer::AudioPlayer(QObject *parent) :
 {
     qRegisterMetaType<State>("State");
 
+    AudioImageProvider::setCurrentAudioPlayer(this);
+
     connect(MediaLibrary::instance(), SIGNAL(tag(Tag)), this, SLOT(tagReady(Tag)));
 }
 
@@ -45,6 +47,11 @@ void AudioPlayer::setAudioDevice(AudioDevice *device)
     m_audio = device;
 }
 
+QImage AudioPlayer::currentArtwork() const
+{
+    return m_artwork;
+}
+
 QString AudioPlayer::windowTitle() const
 {
     return QApplication::topLevelWidgets().first()->windowTitle();
@@ -57,9 +64,14 @@ void AudioPlayer::setWindowTitle(const QString &title)
 
 void AudioPlayer::tagReady(const Tag &tag)
 {
-    qDebug() << "tag:" << tag.filename();
-    qDebug() << tag.keys();
-    qDebug() << tag.data("title").toString();
+    QVariant art = tag.data("picture0");
+    if (art.isValid()) {
+        QImage image = art.value<QImage>();
+        if (!image.isNull()) {
+            m_artwork = image;
+            emit artworkAvailable();
+        }
+    }
 }
 
 void AudioPlayer::outputStateChanged(QAudio::State state)
@@ -100,6 +112,7 @@ void AudioPlayer::play()
         if (mime.isEmpty())
             return;
 
+        m_artwork = QImage();
         MediaLibrary::instance()->requestTag(m_filename);
 
         Codec* codec = Codecs::instance()->createCodec(mime);
@@ -166,4 +179,34 @@ QByteArray AudioPlayer::mimeType(const QString &filename) const
     }
 
     return QByteArray();
+}
+
+AudioPlayer* AudioImageProvider::s_currentPlayer = 0;
+
+AudioImageProvider::AudioImageProvider()
+    : QDeclarativeImageProvider(Image)
+{
+}
+
+void AudioImageProvider::setCurrentAudioPlayer(AudioPlayer* player)
+{
+    s_currentPlayer = player;
+}
+
+QImage AudioImageProvider::requestImage(const QString &id, QSize *size, const QSize &requestedSize)
+{
+    Q_UNUSED(id)
+
+    if (!s_currentPlayer)
+        return QImage();
+
+    QImage img = s_currentPlayer->currentArtwork();
+    if (img.isNull())
+        return img;
+
+    *size = img.size();
+
+    if (requestedSize.isValid())
+        return img.scaled(requestedSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    return img;
 }

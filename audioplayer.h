@@ -2,6 +2,7 @@
 #define AUDIOPLAYER_H
 
 #include <QObject>
+#include <QDeclarativeImageProvider>
 #include "audiodevice.h"
 #include "tag.h"
 
@@ -32,18 +33,21 @@ public:
     QString windowTitle() const;
     void setWindowTitle(const QString& title);
 
+    QImage currentArtwork() const;
+
 signals:
     // ### fix this once QML accepts enums as arguments in signals
     void stateChanged();
+    void artworkAvailable();
 
 public slots:
     void play();
     void pause();
     void stop();
-    void tagReady(const Tag& tag);
 
 private slots:
     void outputStateChanged(QAudio::State state);
+    void tagReady(const Tag& tag);
 
 private:
     QByteArray mimeType(const QString& filename) const;
@@ -55,6 +59,22 @@ private:
     AudioDevice* m_audio;
 
     CodecDevice* m_codec;
+
+    QImage m_artwork;
+};
+
+class AudioImageProvider : public QDeclarativeImageProvider
+{
+public:
+    AudioImageProvider();
+
+    // ### This is far from perfect but the best I can do without redesigning AudioPlayer
+    static void setCurrentAudioPlayer(AudioPlayer* player);
+
+    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize);
+
+private:
+    static AudioPlayer* s_currentPlayer;
 };
 
 #endif // AUDIOPLAYER_H

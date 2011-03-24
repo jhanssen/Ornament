@@ -31,8 +31,11 @@ Rectangle {
 
     function playNext() {
         var cur = musicModel.positionFromFilename(audioPlayer.filename)
-        if (cur !== -1 && cur + 1 < musicModel.trackCount())
+        if (cur !== -1 && cur + 1 < musicModel.trackCount()) {
             playFile(musicModel.filenameByPosition(cur + 1))
+            return true
+        }
+        return false
     }
 
     function playPrevious() {
@@ -66,9 +69,14 @@ Rectangle {
                 // ### this is not the best way of getting the current track name I'm sure
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
-                playNext()
-            } else
+                if (!playNext()) {
+                    artworkContainer.opacity = 0
+                    playButton.image = "icons/play.svg"
+                }
+            } else {
+                artworkContainer.opacity = 0
                 playButton.image = "icons/play.svg"
+            }
 
             var title = topLevel.windowTitle
             if (topLevel.songTitle.length > 0) {
@@ -115,28 +123,128 @@ Rectangle {
         }
     }
 
-    ListView {
-        id: list
+    Rectangle {
+        id: artworkContainer
         clip: true
+        opacity: 0
 
         anchors.left: buttons.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
-        model: musicModel
-        highlight: highlight
-        focus: true
+        function updateArtwork() {
+            artwork.source = "image://artwork/" + audioPlayer.filename
+            artworkContainer.opacity = 1
+        }
+
+        Component.onCompleted: {
+            audioPlayer.artworkAvailable.connect(updateArtwork)
+        }
+
+        Image {
+            id: artwork
+
+            anchors.fill: parent
+        }
+    }
+
+    Rectangle {
+        id: listWrapper
+        color: "white"
+        opacity: 0.7
+
+        anchors.left: buttons.right
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
 
         property int currentMusicId
         property int currentMouseButton
 
-        onCurrentIndexChanged: {
-            if (currentIndex === -1) {
-                highlightItem.opacity = 0
-                highlightItem.y = 0
-            } else
-                highlightItem.opacity = 1
+        ListView {
+            id: list
+            clip: true
+
+            anchors.fill: parent
+
+            model: musicModel
+            highlight: highlight
+            focus: true
+
+            onCurrentIndexChanged: {
+                if (currentIndex === -1) {
+                    highlightItem.opacity = 0
+                    highlightItem.y = 0
+                } else
+                    highlightItem.opacity = 1
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+
+                onClicked: {
+                    listWrapper.currentMouseButton = mouse.button
+                    fadeOut.start()
+                }
+            }
+
+            SequentialAnimation {
+                id: fadeOut
+                NumberAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
+            }
+
+            SequentialAnimation {
+                id: fadeIn
+                NumberAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
+            }
+
+            delegate: Item {
+                id: delegate
+                width: delegate.ListView.view.width
+                height: 30
+                clip: true
+                anchors.margins: 4
+
+                Row {
+                    id: row
+                    anchors.margins: 4
+                    anchors.fill: parent
+                    spacing: 4
+
+                    Text {
+                        id: value
+
+                        text: musicitem
+                        width: 150
+
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+                            onPressed: {
+                                list.currentIndex = musicindex
+                            }
+
+                            onClicked: {
+                                if (mouse.button === Qt.LeftButton) {
+                                    // -1 is no artist or album selected, 0 is all tracks for the album/artist selected
+                                    if ((musicModel.currentArtistId !== -1 && musicModel.currentAlbumId !== -1)
+                                            || (musicModel.currentArtistId === 0 && musicModel.currentAlbumId === -1)) {
+                                        playFile(musicModel.filenameById(musicid))
+                                        return
+                                    }
+                                }
+
+                                listWrapper.currentMusicId = musicid
+                                listWrapper.currentMouseButton = mouse.button
+                                fadeOut.start()
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         onOpacityChanged: {
@@ -148,7 +256,7 @@ Rectangle {
 
             var title
 
-            if (currentMouseButton === Qt.RightButton) {
+            if (listWrapper.currentMouseButton === Qt.RightButton) {
                 // ### a lot of the code for Qt.RightButton here is duplicated below. Needs a fix!
 
                 if (musicModel.currentAlbumId !== -1)
@@ -178,9 +286,9 @@ Rectangle {
             }
 
             if (musicModel.currentArtistId === -1)
-                musicModel.currentArtistId = currentMusicId
+                musicModel.currentArtistId = listWrapper.currentMusicId
             else if (musicModel.currentAlbumId === -1)
-                musicModel.currentAlbumId = currentMusicId
+                musicModel.currentAlbumId = listWrapper.currentMusicId
 
             if (musicModel.currentArtistId > 0) {
                 if (musicModel.currentAlbumId > 0)
@@ -203,72 +311,6 @@ Rectangle {
                 list.currentIndex = cur;
 
             fadeIn.start()
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.RightButton
-
-            onClicked: {
-                list.currentMouseButton = mouse.button
-                fadeOut.start()
-            }
-        }
-
-        SequentialAnimation {
-            id: fadeOut
-            NumberAnimation { target: list; property: "opacity"; from: 1; to: 0; duration: 200 }
-        }
-
-        SequentialAnimation {
-            id: fadeIn
-            NumberAnimation { target: list; property: "opacity"; from: 0; to: 1; duration: 200 }
-        }
-
-        delegate: Item {
-            id: delegate
-            width: delegate.ListView.view.width
-            height: 30
-            clip: true
-            anchors.margins: 4
-
-            Row {
-                id: row
-                anchors.margins: 4
-                anchors.fill: parent
-                spacing: 4
-
-                Text {
-                    id: value
-
-                    text: musicitem
-                    width: 150
-
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-
-                        onPressed: {
-                            list.currentIndex = musicindex
-                        }
-
-                        onClicked: {
-                            if (mouse.button === Qt.LeftButton) {
-                                // -1 is no artist or album selected, 0 is all tracks for the album/artist selected
-                                if ((musicModel.currentArtistId !== -1 && musicModel.currentAlbumId !== -1)
-                                    || (musicModel.currentArtistId === 0 && musicModel.currentAlbumId === -1)) {
-                                    playFile(musicModel.filenameById(musicid))
-                                    return
-                                }
-                            }
-
-                            list.currentMusicId = musicid
-                            list.currentMouseButton = mouse.button
-                            fadeOut.start()
-                        }
-                    }
-                }
-            }
         }
     }
 }

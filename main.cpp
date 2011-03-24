@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QDeclarativeComponent>
 #include <QDeclarativeView>
+#include <QDeclarativeEngine>
 
 int main(int argc, char** argv)
 {
@@ -22,6 +23,9 @@ int main(int argc, char** argv)
     qmlRegisterType<MusicModel>("MusicModel", 1, 0, "MusicModel");
 
     QDeclarativeView view(QUrl::fromLocalFile("player.qml"));
+
+    view.engine()->addImageProvider(QLatin1String("artwork"), new AudioImageProvider);
+
     view.setResizeMode(QDeclarativeView::SizeRootObjectToView);
     view.show();
 
