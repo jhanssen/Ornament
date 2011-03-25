@@ -623,16 +623,6 @@ void MediaLibrary::tagReceived(const Tag &t)
         processArtwork(t);
 }
 
-bool MediaLibrary::testAndSendArtwork(const QString &filename)
-{
-    QImage img;
-    if (img.load(filename) && !img.isNull()) {
-        emit artwork(img);
-        return true;
-    }
-    return false;
-}
-
 void MediaLibrary::processArtwork(const Tag &tag)
 {
     bool sent = false;
@@ -651,15 +641,15 @@ void MediaLibrary::processArtwork(const Tag &tag)
         QFileInfo info(tag.filename());
         if (info.exists()) {
             QDir dir = info.absoluteDir();
-            // ### perhaps iterate over all the files in the directory and use the first jpg/png image?
-            if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.jpg"))))
-                return;
-            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.png"))))
-                return;
-            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("folder.jpg"))))
-                return;
-            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("folder.png"))))
-                return;
+
+            QStringList files = dir.entryList((QStringList() << "*.png" << "*.jpg" << "*.jpeg"), QDir::Files, QDir::Name);
+            foreach(const QString& file, files) {
+                QImage img(dir.absoluteFilePath(file));
+                if (!img.isNull()) {
+                    emit artwork(img);
+                    return;
+                }
+            }
         }
     }
 }

@@ -78,7 +78,6 @@ private slots:
 
 private:
     void processArtwork(const Tag& tag);
-    bool testAndSendArtwork(const QString& filename);
 
 private:
     MediaLibrary(QObject *parent = 0);
