@@ -18,9 +18,13 @@ int main(int argc, char** argv)
     Codecs::init();
     MediaLibrary::init();
 
+    QSettings settings(QLatin1String("hepp"), QLatin1String("player"));
+    MediaLibrary::instance()->setSettings(&settings);
+
     qmlRegisterType<AudioDevice>("AudioDevice", 1, 0, "AudioDevice");
     qmlRegisterType<AudioPlayer>("AudioPlayer", 1, 0, "AudioPlayer");
     qmlRegisterType<MusicModel>("MusicModel", 1, 0, "MusicModel");
+    qmlRegisterType<MediaModel>("MediaModel", 1, 0, "MediaModel");
 
     QDeclarativeView view(QUrl::fromLocalFile("player.qml"));
 

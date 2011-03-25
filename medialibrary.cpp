@@ -6,6 +6,7 @@
 #include <QStack>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QFileDialog>
 
 Q_DECLARE_METATYPE(PathSet)
 Q_DECLARE_METATYPE(Artist)
@@ -501,7 +502,7 @@ void MediaJob::readTag(const QString &path, Tag& tag)
 MediaLibrary* MediaLibrary::s_inst = 0;
 
 MediaLibrary::MediaLibrary(QObject *parent) :
-    QObject(parent)
+    QObject(parent), m_settings(0)
 {
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
@@ -514,6 +515,22 @@ MediaLibrary::MediaLibrary(QObject *parent) :
 MediaLibrary::~MediaLibrary()
 {
     MediaJob::deinit();
+}
+
+void MediaLibrary::setSettings(QSettings *settings)
+{
+    m_settings = settings;
+
+    if (m_settings)
+        m_paths = m_settings->value(QLatin1String("mediaPaths")).toStringList();
+}
+
+void MediaLibrary::syncSettings()
+{
+    if (m_settings) {
+        m_settings->setValue(QLatin1String("mediaPaths"), m_paths);
+        m_settings->sync();
+    }
 }
 
 MediaLibrary* MediaLibrary::instance()
@@ -535,11 +552,13 @@ QStringList MediaLibrary::paths()
 void MediaLibrary::setPaths(const QStringList &paths)
 {
     m_paths = paths;
+    syncSettings();
 }
 
 void MediaLibrary::addPath(const QString &path)
 {
     m_paths.append(path);
+    syncSettings();
 }
 
 void MediaLibrary::incrementalUpdate()
@@ -676,4 +695,137 @@ void MediaLibrary::jobFinished(IOJob *job)
     m_jobs.remove(job);
 
     IOJob::deleteIfNeeded(job);
+}
+
+MediaModel::MediaModel(QObject *parent)
+    : QAbstractListModel(parent)
+{
+    updateFromLibrary();
+
+    QHash<int, QByteArray> roles;
+    roles[Qt::UserRole + 4] = "mediaindex";
+    roles[Qt::UserRole + 5] = "mediaitem";
+    setRoleNames(roles);
+}
+
+Qt::ItemFlags MediaModel::flags(const QModelIndex &index) const
+{
+    Qt::ItemFlags f = QAbstractListModel::flags(index);
+    f |= Qt::ItemIsEditable;
+    return f;
+}
+
+int MediaModel::rowCount(const QModelIndex &parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return m_data.size();
+}
+
+QVariant MediaModel::data(const QModelIndex &index, int role) const
+{
+    if (index.parent().isValid() || index.column() != 0)
+        return QVariant();
+
+    if (role == Qt::UserRole + 4)
+        return index.row();
+    else if (role != Qt::DisplayRole && role != Qt::UserRole + 5)
+        return QVariant();
+
+    int row = index.row();
+    if (row < 0 || row >= m_data.size())
+        return QVariant();
+
+    QString data = m_data.at(row);
+    if (data.isEmpty())
+        data = QLatin1String("<click to set path>");
+    return data;
+}
+
+QVariant MediaModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    return QAbstractListModel::headerData(section, orientation, role);
+}
+
+bool MediaModel::setData(const QModelIndex &index, const QVariant &value, int role)
+{
+    if (index.parent().isValid() || index.column() != 0 || role != Qt::DisplayRole)
+        return false;
+
+    int row = index.row();
+    if (row < 0 || row >= m_data.size())
+        return false;
+
+    m_data[row] = value.toString();
+    emit dataChanged(index, index);
+
+    MediaLibrary::instance()->setPaths(m_data);
+    MediaLibrary::instance()->fullUpdate();
+
+    return true;
+}
+
+bool MediaModel::insertRows(int row, int count, const QModelIndex &parent)
+{
+    if (parent.isValid())
+        return false;
+
+    if (row < 0 || row > m_data.size())
+        return false;
+
+    beginInsertRows(parent, row, row + count - 1);
+    for (int i = 0; i < count; ++i)
+        m_data.insert(row, QString());
+    endInsertRows();
+
+    return true;
+}
+
+bool MediaModel::removeRows(int row, int count, const QModelIndex &parent)
+{
+    if (parent.isValid())
+        return false;
+
+    if (row < 0 || row + count - 1 > m_data.size())
+        return false;
+
+    beginRemoveRows(parent, row, row + count - 1);
+    for (int i = 0; i < count; ++i)
+        m_data.removeAt(row);
+    endRemoveRows();
+
+    MediaLibrary::instance()->setPaths(m_data);
+
+    return true;
+}
+
+void MediaModel::addRow()
+{
+    QModelIndex idx;
+    insertRows(rowCount(idx), 1, idx);
+}
+
+void MediaModel::removeRow(int row)
+{
+    removeRows(row, 1, QModelIndex());
+}
+
+void MediaModel::setPathInRow(int row)
+{
+    QString existing;
+    if (row >= 0 && row < m_data.size())
+        existing = m_data.at(row);
+
+    QString path = QFileDialog::getExistingDirectory(0, QLatin1String("Select directory for inclusion"), existing);
+    if (!path.isEmpty()) {
+        QModelIndex idx = index(row);
+        if (!idx.isValid())
+            return;
+        setData(idx, path, Qt::DisplayRole);
+    }
+}
+
+void MediaModel::updateFromLibrary()
+{
+    m_data = MediaLibrary::instance()->paths();
 }

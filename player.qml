@@ -1,6 +1,7 @@
 import QtQuick 1.0
 import AudioDevice 1.0
 import AudioPlayer 1.0
+import MediaModel 1.0
 import MusicModel 1.0
 
 Rectangle {
@@ -42,6 +43,25 @@ Rectangle {
         var cur = musicModel.positionFromFilename(audioPlayer.filename)
         if (cur > 0)
             playFile(musicModel.filenameByPosition(cur - 1))
+    }
+
+    function toggleMediaList() {
+        if (buttons.state === "media") {
+            list.state = "music"
+            buttons.state = "music"
+        } else {
+            list.state = "media"
+            buttons.state = "media"
+        }
+    }
+
+    function addMediaItem() {
+        mediaModel.addRow()
+    }
+
+    function removeMediaItem() {
+        if (list.currentIndex !== -1)
+            mediaModel.removeRow(list.currentIndex)
     }
 
     width: 350
@@ -92,6 +112,10 @@ Rectangle {
         }
     }
 
+    MediaModel {
+        id: mediaModel
+    }
+
     MusicModel {
         id: musicModel
     }
@@ -111,6 +135,48 @@ Rectangle {
         Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
         Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom; onClicked: { playPrevious() } }
         Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom; onClicked: { playNext() } }
+        Button { id: mediaButton; text: "m"; anchors.top: nextButton.bottom; onClicked: { toggleMediaList() } }
+        Button { id: plusButton; text: "+"; anchors.top: parent.top; opacity: 0; onClicked: { addMediaItem() } }
+        Button { id: minusButton; text: "-"; anchors.top: plusButton.bottom; opacity: 0; onClicked: { removeMediaItem() } }
+
+        Component.onCompleted: { state = "music" }
+
+        states: [
+            State {
+                name: "music"
+            },
+            State {
+                name: "media"
+                AnchorChanges { target: mediaButton; anchors.top: minusButton.bottom }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "music"; to: "media"
+                ParallelAnimation {
+                    PropertyAnimation { target: playButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: stopButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: prevButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: nextButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: plusButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: minusButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    AnchorAnimation { duration: 200 }
+                }
+            },
+            Transition {
+                from: "media"; to: "music"
+                ParallelAnimation {
+                    PropertyAnimation { target: playButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: stopButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: prevButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: nextButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: plusButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: minusButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    AnchorAnimation { duration: 200 }
+                }
+            }
+        ]
     }
 
     Component {
@@ -191,6 +257,32 @@ Rectangle {
             highlight: highlight
             focus: true
 
+            states: [
+                State { name: "music" },
+                State { name: "media" }
+            ]
+
+            transitions: [
+                Transition {
+                    from: "music"; to: "media"
+                    SequentialAnimation {
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 1; to: 0; duration: 200 }
+                        ScriptAction { script: { list.model = mediaModel; list.delegate = mediaDelegate } }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    }
+                },
+                Transition {
+                    from: "media"; to: "music"
+                    SequentialAnimation {
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 1; to: 0; duration: 200 }
+                        ScriptAction { script: { list.delegate = musicDelegate; list.model = musicModel } }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    }
+                }
+            ]
+
+            Component.onCompleted: { state = "music" }
+
             onCurrentIndexChanged: {
                 if (currentIndex === -1) {
                     highlightItem.opacity = 0
@@ -204,6 +296,9 @@ Rectangle {
                 acceptedButtons: Qt.RightButton
 
                 onClicked: {
+                    if (list.state === "media")
+                        return
+
                     listWrapper.currentMouseButton = mouse.button
                     fadeList.start()
                 }
@@ -274,8 +369,13 @@ Rectangle {
                 NumberAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
             }
 
-            delegate: Item {
-                id: delegate
+            delegate: musicDelegate
+        }
+
+        Component {
+            id: musicDelegate
+
+            Item {
                 width: list.width
                 height: 30
                 clip: true
@@ -316,6 +416,42 @@ Rectangle {
                                 listWrapper.currentMouseButton = mouse.button
                                 fadeList.start()
                             }
+                        }
+                    }
+                }
+            }
+        }
+
+        Component {
+            id: mediaDelegate
+
+            Item {
+                width: list.width
+                height: 30
+                clip: true
+                anchors.margins: 4
+
+                Row {
+                    anchors.margins: 4
+                    anchors.fill: parent
+                    spacing: 4
+
+                    Text {
+                        text: mediaitem
+                        width: parent.width
+                        height: parent.height
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
+
+                        onPressed: {
+                            list.currentIndex = mediaindex
+                        }
+
+                        onClicked: {
+                            mediaModel.setPathInRow(mediaindex)
                         }
                     }
                 }
