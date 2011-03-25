@@ -16,7 +16,7 @@ QStringList AudioDevice::devices() const
     QStringList ret;
 
     QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
-    foreach(QAudioDeviceInfo device, devices) {
+    foreach(const QAudioDeviceInfo& device, devices) {
         ret << device.deviceName();
     }
 
@@ -42,7 +42,7 @@ void AudioDevice::createOutput()
         return;
 
     QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
-    foreach(QAudioDeviceInfo dev, devices) {
+    foreach(const QAudioDeviceInfo& dev, devices) {
         if (m_device == dev.deviceName()) {
             m_output = new QAudioOutput(dev, dev.preferredFormat());
             m_output->setBufferSize(16384 * 4);
@@ -57,7 +57,7 @@ bool AudioDevice::setDevice(const QString &device)
         return true;
 
     QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
-    foreach(QAudioDeviceInfo dev, devices) {
+    foreach(const QAudioDeviceInfo& dev, devices) {
         if (device == dev.deviceName()) {
             m_device = device;
             delete m_output;
