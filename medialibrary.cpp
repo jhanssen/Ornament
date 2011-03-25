@@ -595,6 +595,12 @@ void MediaLibrary::requestTag(const QString &filename)
     m_pendingJobs.insert(jobid);
 }
 
+void MediaLibrary::requestArtwork(const QString &filename)
+{
+    m_pendingArtwork.insert(filename);
+    requestTag(filename);
+}
+
 void MediaLibrary::setTag(const QString &filename, const Tag &tag)
 {
     QList<QVariant> list;
@@ -609,6 +615,54 @@ void MediaLibrary::setTag(const QString &filename, const Tag &tag)
     m_pendingJobs.insert(jobid);
 }
 
+void MediaLibrary::tagReceived(const Tag &t)
+{
+    emit tag(t);
+
+    if (m_pendingArtwork.remove(t.filename()))
+        processArtwork(t);
+}
+
+bool MediaLibrary::testAndSendArtwork(const QString &filename)
+{
+    QImage img;
+    if (img.load(filename) && !img.isNull()) {
+        emit artwork(img);
+        return true;
+    }
+    return false;
+}
+
+void MediaLibrary::processArtwork(const Tag &tag)
+{
+    bool sent = false;
+
+    QVariant picture = tag.data(QLatin1String("picture0"));
+    if (picture.isValid()) {
+        QImage img = picture.value<QImage>();
+        if (!img.isNull()) {
+            sent = true;
+            emit artwork(img);
+        }
+    }
+
+    if (!sent) {
+        // Check the directory
+        QFileInfo info(tag.filename());
+        if (info.exists()) {
+            QDir dir = info.absoluteDir();
+            if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.jpg"))))
+                return;
+            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.png"))))
+                return;
+            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("folder.jpg"))))
+                return;
+            else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("folder.png"))))
+                return;
+        }
+    }
+}
+
 void MediaLibrary::jobCreated(IOJob *job)
 {
     if (m_pendingJobs.contains(job->jobNumber())) {
@@ -616,7 +670,7 @@ void MediaLibrary::jobCreated(IOJob *job)
 
         MediaJob* media = static_cast<MediaJob*>(job);
 
-        connect(media, SIGNAL(tag(Tag)), this, SIGNAL(tag(Tag)));
+        connect(media, SIGNAL(tag(Tag)), this, SLOT(tagReceived(Tag)));
         connect(media, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
         connect(media, SIGNAL(trackRemoved(int)), this, SIGNAL(trackRemoved(int)));
         connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));

@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <QSet>
 #include <QHash>
+#include <QImage>
 
 #include "tag.h"
 
@@ -56,10 +57,12 @@ public:
 
     void readLibrary();
 
+    void requestArtwork(const QString& filename);
     void requestTag(const QString& filename);
     void setTag(const QString& filename, const Tag& tag);
 
 signals:
+    void artwork(const QImage& image);
     void tag(const Tag& tag);
     void tagWritten(const QString& filename);
 
@@ -71,6 +74,11 @@ signals:
 private slots:
     void jobCreated(IOJob* job);
     void jobFinished(IOJob* job);
+    void tagReceived(const Tag& tag);
+
+private:
+    void processArtwork(const Tag& tag);
+    bool testAndSendArtwork(const QString& filename);
 
 private:
     MediaLibrary(QObject *parent = 0);
@@ -80,6 +88,7 @@ private:
     QStringList m_paths;
     PathSet m_updatedPaths;
 
+    QSet<QString> m_pendingArtwork;
     QSet<int> m_pendingJobs;
     QHash<IOJob*, IOPtr> m_jobs;
 };

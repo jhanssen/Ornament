@@ -15,7 +15,7 @@ AudioPlayer::AudioPlayer(QObject *parent) :
 
     AudioImageProvider::setCurrentAudioPlayer(this);
 
-    connect(MediaLibrary::instance(), SIGNAL(tag(Tag)), this, SLOT(tagReady(Tag)));
+    connect(MediaLibrary::instance(), SIGNAL(artwork(QImage)), this, SLOT(artworkReady(QImage)));
 }
 
 QString AudioPlayer::filename() const
@@ -62,16 +62,10 @@ void AudioPlayer::setWindowTitle(const QString &title)
     QApplication::topLevelWidgets().first()->setWindowTitle(title);
 }
 
-void AudioPlayer::tagReady(const Tag &tag)
+void AudioPlayer::artworkReady(const QImage &image)
 {
-    QVariant art = tag.data("picture0");
-    if (art.isValid()) {
-        QImage image = art.value<QImage>();
-        if (!image.isNull()) {
-            m_artwork = image;
-            emit artworkAvailable();
-        }
-    }
+    m_artwork = image;
+    emit artworkAvailable();
 }
 
 void AudioPlayer::outputStateChanged(QAudio::State state)
@@ -113,7 +107,7 @@ void AudioPlayer::play()
             return;
 
         m_artwork = QImage();
-        MediaLibrary::instance()->requestTag(m_filename);
+        MediaLibrary::instance()->requestArtwork(m_filename);
 
         Codec* codec = Codecs::instance()->createCodec(mime);
         if (!codec)

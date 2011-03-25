@@ -47,7 +47,7 @@ public slots:
 
 private slots:
     void outputStateChanged(QAudio::State state);
-    void tagReady(const Tag& tag);
+    void artworkReady(const QImage& image);
 
 private:
     QByteArray mimeType(const QString& filename) const;
