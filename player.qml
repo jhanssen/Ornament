@@ -135,10 +135,12 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
+        property string updateSource
+
         function updateArtwork() {
-            artwork.source = "image://artwork/" + audioPlayer.filename
-            if (artworkContainer.opacity < 1)
-                artworkFadeIn.start()
+            updateSource = "image://artwork/" + audioPlayer.filename
+            artworkChange.start()
+
         }
 
         Component.onCompleted: {
@@ -155,6 +157,12 @@ Rectangle {
 
         PropertyAnimation { id: artworkFadeOut; target: artworkContainer; property: "opacity"; from: 1; to: 0; duration: 200 }
         PropertyAnimation { id: artworkFadeIn; target: artworkContainer; property: "opacity"; from: 0; to: 1; duration: 200 }
+        SequentialAnimation {
+            id: artworkChange
+            PropertyAnimation { target: artworkContainer; property: "opacity"; from: 1; to : 0; duration: 200 }
+            ScriptAction { script: { artwork.source = artworkContainer.updateSource } }
+            PropertyAnimation { target: artworkContainer; property: "opacity"; from: 0; to : 1; duration: 200 }
+        }
     }
 
     Rectangle {

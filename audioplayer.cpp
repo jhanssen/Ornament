@@ -5,6 +5,7 @@
 #include "codecs/codecs.h"
 #include "medialibrary.h"
 #include <QApplication>
+#include <QCryptographicHash>
 #include <QWidget>
 #include <QDebug>
 
@@ -64,6 +65,16 @@ void AudioPlayer::setWindowTitle(const QString &title)
 
 void AudioPlayer::artworkReady(const QImage &image)
 {
+    QCryptographicHash hash(QCryptographicHash::Sha1);
+    hash.addData(reinterpret_cast<const char*>(image.constBits()), image.byteCount());
+    QByteArray result = hash.result();
+
+    if (result == m_artworkHash) {
+        m_artwork = image;
+        return;
+    }
+
+    m_artworkHash = result;
     m_artwork = image;
     emit artworkAvailable();
 }

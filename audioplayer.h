@@ -61,6 +61,7 @@ private:
     CodecDevice* m_codec;
 
     QImage m_artwork;
+    QByteArray m_artworkHash;
 };
 
 class AudioImageProvider : public QDeclarativeImageProvider
