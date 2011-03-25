@@ -121,7 +121,7 @@ int MediaData::addArtist(const QString &name, bool* added)
 {
     QSqlQuery q(database);
 
-    q.prepare("select artists.id from artists where artists.artist = ?");
+    q.prepare("select artists.id from artists where artists.artist = ? collate nocase");
     q.bindValue(0, name);
     if (q.exec() && q.next()) {
         if (added)
@@ -149,7 +149,7 @@ int MediaData::addAlbum(int artistid, const QString &name, bool* added)
 
     QSqlQuery q(database);
 
-    q.prepare("select albums.id from albums where albums.album = ? and albums.artistid = ?");
+    q.prepare("select albums.id from albums where albums.album = ? and albums.artistid = ? collate nocase");
     q.bindValue(0, name);
     q.bindValue(1, artistid);
     if (q.exec() && q.next()) {
@@ -179,7 +179,7 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
 
     QSqlQuery q(database);
 
-    q.prepare("select tracks.id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ?");
+    q.prepare("select tracks.id from tracks, albums where tracks.track = ? and tracks.albumid = ? and albums.id = tracks.albumid and albums.artistid = ? collate nocase");
     q.bindValue(0, name);
     q.bindValue(1, albumid);
     q.bindValue(2, artistid);
