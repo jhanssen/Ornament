@@ -651,6 +651,7 @@ void MediaLibrary::processArtwork(const Tag &tag)
         QFileInfo info(tag.filename());
         if (info.exists()) {
             QDir dir = info.absoluteDir();
+            // ### perhaps iterate over all the files in the directory and use the first jpg/png image?
             if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.jpg"))))
                 return;
             else if (testAndSendArtwork(dir.absoluteFilePath(QLatin1String("cover.png"))))
