@@ -115,6 +115,7 @@ Rectangle {
         Rectangle {
             color: "lightsteelblue"; radius: 3
             y: list.currentItem ? list.currentItem.y : 0
+            width: list.width
             Behavior on y {
                 SpringAnimation {
                     spring: 3
@@ -146,6 +147,8 @@ Rectangle {
 
         Image {
             id: artwork
+
+            fillMode: Image.PreserveAspectCrop
 
             anchors.fill: parent
         }
@@ -262,7 +265,7 @@ Rectangle {
 
             delegate: Item {
                 id: delegate
-                width: delegate.ListView.view.width
+                width: list.width
                 height: 30
                 clip: true
                 anchors.margins: 4
@@ -277,7 +280,8 @@ Rectangle {
                         id: value
 
                         text: musicitem
-                        width: 150
+                        width: parent.width
+                        height: parent.height
 
                         MouseArea {
                             anchors.fill: parent
