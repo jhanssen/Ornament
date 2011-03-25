@@ -74,6 +74,7 @@ MusicModel::MusicModel(QObject *parent)
 {
     connect(MediaLibrary::instance(), SIGNAL(artist(Artist)), this, SLOT(updateArtist(Artist)));
     connect(MediaLibrary::instance(), SIGNAL(trackRemoved(int)), this, SLOT(removeTrack(int)));
+    connect(MediaLibrary::instance(), SIGNAL(cleared()), this, SLOT(clearData()));
     MediaLibrary::instance()->readLibrary();
 
     QHash<int, QByteArray> roles;
@@ -91,6 +92,24 @@ MusicModel::~MusicModel()
     qDeleteAll(m_artists);
     qDeleteAll(m_albums);
     qDeleteAll(m_tracks);
+}
+
+void MusicModel::clearData()
+{
+    qDeleteAll(m_artists);
+    m_artists.clear();
+    qDeleteAll(m_albums);
+    m_albums.clear();
+    qDeleteAll(m_tracks);
+    m_tracks.clear();
+
+    m_tracksFile.clear();
+    m_tracksPos.clear();
+    m_artist = 0;
+    m_album = 0;
+    m_artistEmpty = m_albumEmpty = false;
+
+    reset();
 }
 
 void MusicModel::updateArtist(const Artist &artist)

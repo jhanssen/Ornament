@@ -64,6 +64,10 @@ Rectangle {
             mediaModel.removeRow(list.currentIndex)
     }
 
+    function refreshMediaList() {
+        mediaModel.refreshMedia()
+    }
+
     width: 350
     height: 300
 
@@ -138,6 +142,7 @@ Rectangle {
         Button { id: mediaButton; text: "m"; anchors.top: nextButton.bottom; onClicked: { toggleMediaList() } }
         Button { id: plusButton; text: "+"; anchors.top: parent.top; opacity: 0; onClicked: { addMediaItem() } }
         Button { id: minusButton; text: "-"; anchors.top: plusButton.bottom; opacity: 0; onClicked: { removeMediaItem() } }
+        Button { id: refreshButton; text: "r"; anchors.top: minusButton.bottom; opacity: 0; onClicked: { refreshMediaList() } }
 
         Component.onCompleted: { state = "music" }
 
@@ -147,7 +152,7 @@ Rectangle {
             },
             State {
                 name: "media"
-                AnchorChanges { target: mediaButton; anchors.top: minusButton.bottom }
+                AnchorChanges { target: mediaButton; anchors.top: refreshButton.bottom }
             }
         ]
 
@@ -161,6 +166,7 @@ Rectangle {
                     PropertyAnimation { target: nextButton; property: "opacity"; from: 1; to: 0; duration: 200 }
                     PropertyAnimation { target: plusButton; property: "opacity"; from: 0; to: 1; duration: 200 }
                     PropertyAnimation { target: minusButton; property: "opacity"; from: 0; to: 1; duration: 200 }
+                    PropertyAnimation { target: refreshButton; property: "opacity"; from: 0; to: 1; duration: 200 }
                     AnchorAnimation { duration: 200 }
                 }
             },
@@ -173,6 +179,7 @@ Rectangle {
                     PropertyAnimation { target: nextButton; property: "opacity"; from: 0; to: 1; duration: 200 }
                     PropertyAnimation { target: plusButton; property: "opacity"; from: 1; to: 0; duration: 200 }
                     PropertyAnimation { target: minusButton; property: "opacity"; from: 1; to: 0; duration: 200 }
+                    PropertyAnimation { target: refreshButton; property: "opacity"; from: 1; to: 0; duration: 200 }
                     AnchorAnimation { duration: 200 }
                 }
             }

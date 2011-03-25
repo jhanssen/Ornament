@@ -30,6 +30,7 @@ struct MediaData
     void removeNonExistingFiles(MediaJob* job);
 
     void createTables();
+    void clearDatabase();
     int addArtist(const QString& name, bool* added = 0);
     int addAlbum(int artistid, const QString& name, bool* added = 0);
     int addTrack(int artistid, int albumid, const QString& name, const QString& filename, int trackno, bool* added = 0);
@@ -50,7 +51,7 @@ class MediaJob : public IOJob
 
     Q_ENUMS(Type)
 public:
-    enum Type { None, UpdatePaths, RequestTag, SetTag, ReadLibrary };
+    enum Type { None, UpdatePaths, RequestTag, SetTag, ReadLibrary, Refresh };
 
     Q_INVOKABLE MediaJob(QObject* parent = 0);
 
@@ -72,6 +73,7 @@ signals:
     void trackRemoved(int trackid);
     void updateStarted();
     void updateFinished();
+    void databaseCleared();
 
 private:
     Q_INVOKABLE void startJob();
@@ -116,6 +118,14 @@ void MediaData::createTables()
     q.exec(QLatin1String("create table artists (id integer primary key autoincrement, artist text not null)"));
     q.exec(QLatin1String("create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id))"));
     q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, trackno integer, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
+}
+
+void MediaData::clearDatabase()
+{
+    QSqlQuery q(database);
+    q.exec(QLatin1String("delete from artists"));
+    q.exec(QLatin1String("delete from albums"));
+    q.exec(QLatin1String("delete from tracks"));
 }
 
 int MediaData::addArtist(const QString &name, bool* added)
@@ -402,6 +412,10 @@ void MediaJob::start()
 void MediaJob::startJob()
 {
     switch (m_type) {
+    case Refresh:
+        s_data->clearDatabase();
+        emit databaseCleared();
+        // fall through
     case UpdatePaths:
         updatePaths(m_arg.value<PathSet>());
         break;
@@ -620,6 +634,18 @@ void MediaLibrary::requestArtwork(const QString &filename)
     requestTag(filename);
 }
 
+void MediaLibrary::refresh()
+{
+    m_updatedPaths = PathSet::fromList(m_paths);
+
+    MediaJob* job = new MediaJob;
+    job->setType(MediaJob::Refresh);
+    job->setArg(QVariant::fromValue<PathSet>(m_updatedPaths));
+
+    int jobid = IO::instance()->startJob(job);
+    m_pendingJobs.insert(jobid);
+}
+
 void MediaLibrary::setTag(const QString &filename, const Tag &tag)
 {
     QList<QVariant> list;
@@ -684,6 +710,7 @@ void MediaLibrary::jobCreated(IOJob *job)
         connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));
         connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
         connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
+        connect(media, SIGNAL(databaseCleared()), this, SIGNAL(cleared()));
 
         m_jobs.insert(media, IOPtr(media));
         media->start();
@@ -823,6 +850,11 @@ void MediaModel::setPathInRow(int row)
             return;
         setData(idx, path, Qt::DisplayRole);
     }
+}
+
+void MediaModel::refreshMedia()
+{
+    MediaLibrary::instance()->refresh();
 }
 
 void MediaModel::updateFromLibrary()

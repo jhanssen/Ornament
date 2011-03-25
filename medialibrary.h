@@ -58,6 +58,7 @@ public:
     void addPath(const QString& path);
     void incrementalUpdate();
     void fullUpdate();
+    void refresh();
 
     void readLibrary();
 
@@ -74,6 +75,7 @@ signals:
     void trackRemoved(int trackid);
     void updateStarted();
     void updateFinished();
+    void cleared();
 
 private slots:
     void jobCreated(IOJob* job);
@@ -119,6 +121,7 @@ public:
     Q_INVOKABLE void addRow();
     Q_INVOKABLE void removeRow(int row);
     Q_INVOKABLE void setPathInRow(int row);
+    Q_INVOKABLE void refreshMedia();
 
 private:
     QStringList m_data;
