@@ -625,33 +625,31 @@ void MediaLibrary::tagReceived(const Tag &t)
 
 void MediaLibrary::processArtwork(const Tag &tag)
 {
-    bool sent = false;
-
     QVariant picture = tag.data(QLatin1String("picture0"));
     if (picture.isValid()) {
         QImage img = picture.value<QImage>();
         if (!img.isNull()) {
-            sent = true;
             emit artwork(img);
+            return;
         }
     }
 
-    if (!sent) {
-        // Check the directory
-        QFileInfo info(tag.filename());
-        if (info.exists()) {
-            QDir dir = info.absoluteDir();
+    // Check the directory
+    QFileInfo info(tag.filename());
+    if (info.exists()) {
+        QDir dir = info.absoluteDir();
 
-            QStringList files = dir.entryList((QStringList() << "*.png" << "*.jpg" << "*.jpeg"), QDir::Files, QDir::Name);
-            foreach(const QString& file, files) {
-                QImage img(dir.absoluteFilePath(file));
-                if (!img.isNull()) {
-                    emit artwork(img);
-                    return;
-                }
+        QStringList files = dir.entryList((QStringList() << "*.png" << "*.jpg" << "*.jpeg"), QDir::Files, QDir::Name);
+        foreach(const QString& file, files) {
+            QImage img(dir.absoluteFilePath(file));
+            if (!img.isNull()) {
+                emit artwork(img);
+                return;
             }
         }
     }
+
+    emit artwork(QImage());
 }
 
 void MediaLibrary::jobCreated(IOJob *job)

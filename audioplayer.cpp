@@ -65,6 +65,16 @@ void AudioPlayer::setWindowTitle(const QString &title)
 
 void AudioPlayer::artworkReady(const QImage &image)
 {
+    if (image.isNull()) {
+        if (m_artworkHash.isEmpty())
+            return;
+
+        m_artwork = image;
+        m_artworkHash.clear();
+        emit artworkAvailable();
+        return;
+    }
+
     QCryptographicHash hash(QCryptographicHash::Sha1);
     hash.addData(reinterpret_cast<const char*>(image.constBits()), image.byteCount());
     QByteArray result = hash.result();
