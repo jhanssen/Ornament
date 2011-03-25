@@ -13,7 +13,7 @@ Rectangle {
 
     function playFile(filename) {
         if (filename === "")
-            return;
+            return
         audioDevice.device = audioDevice.devices[0]
         audioPlayer.audioDevice = audioDevice
         audioPlayer.filename = filename
@@ -60,11 +60,14 @@ Rectangle {
             topLevel.songTitle = ""
 
             if (state === AudioPlayer.Playing) {
+                if (artworkContainer.opacity < 1)
+                    artworkFadeIn.start()
+
                 playButton.image = "icons/pause.svg"
 
                 var cur = musicModel.positionFromFilename(audioPlayer.filename)
                 if (cur !== -1)
-                    list.currentIndex = cur;
+                    list.currentIndex = cur
 
                 // ### this is not the best way of getting the current track name I'm sure
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
@@ -265,7 +268,7 @@ Rectangle {
 
                         var cur = musicModel.positionFromFilename(audioPlayer.filename)
                         if (cur !== -1)
-                            list.currentIndex = cur;
+                            list.currentIndex = cur
                     }
                 }
                 NumberAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
