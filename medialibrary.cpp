@@ -262,11 +262,15 @@ bool MediaData::updatePaths(MediaJob* job)
     if (!state.files.isEmpty()) {
         QString file = QDir::cleanPath(state.path + QLatin1String("/") + takeFirst(state.files));
 
+        QByteArray mimetype = MediaLibrary::mimeType(file);
+        if (mimetype.isEmpty())
+            return true;
+
         Tag tag;
         job->readTag(file, tag);
         if (tag.isValid()) {
             int duration = 0;
-            AudioFileInformation* info = Codecs::instance()->createAudioFileInformation("audio/mp3");
+            AudioFileInformation* info = Codecs::instance()->createAudioFileInformation(mimetype);
             if (info) {
                 info->setFilename(file);
                 duration = info->length();
@@ -480,7 +484,7 @@ void MediaJob::updatePaths(const PathSet &paths)
     s_data->paths += paths;
 
     if (shouldUpdate && !s_data->paths.isEmpty()) {
-        QTimer::singleShot(0, this, SLOT(updatePaths()));
+        QTimer::singleShot(50, this, SLOT(updatePaths()));
     } else {
         emit updateFinished();
         emit finished();
@@ -490,7 +494,7 @@ void MediaJob::updatePaths(const PathSet &paths)
 void MediaJob::updatePaths()
 {
     if (s_data->updatePaths(this))
-        QTimer::singleShot(0, this, SLOT(updatePaths()));
+        QTimer::singleShot(50, this, SLOT(updatePaths()));
     else {
         emit updateFinished();
         emit finished();
@@ -735,6 +739,21 @@ void MediaLibrary::jobFinished(IOJob *job)
     m_jobs.remove(job);
 
     IOJob::deleteIfNeeded(job);
+}
+
+QByteArray MediaLibrary::mimeType(const QString &filename)
+{
+    if (filename.isEmpty())
+        return QByteArray();
+
+    int extpos = filename.lastIndexOf(QLatin1Char('.'));
+    if (extpos > 0) {
+        QString ext = filename.mid(extpos);
+        if (ext == QLatin1String(".mp3"))
+            return QByteArray("audio/mp3");
+    }
+
+    return QByteArray();
 }
 
 MediaModel::MediaModel(QObject *parent)

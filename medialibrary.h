@@ -67,6 +67,8 @@ public:
     void requestTag(const QString& filename);
     void setTag(const QString& filename, const Tag& tag);
 
+    static QByteArray mimeType(const QString& filename);
+
 signals:
     void artwork(const QImage& image);
     void tag(const Tag& tag);

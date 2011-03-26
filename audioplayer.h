@@ -52,9 +52,6 @@ private slots:
     void intervalNotified();
 
 private:
-    QByteArray mimeType(const QString& filename) const;
-
-private:
     State m_state;
 
     QString m_filename;
