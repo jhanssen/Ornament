@@ -12,6 +12,25 @@ Rectangle {
 
     SystemPalette { id: activePalette }
 
+    function msToString(ms) {
+        var s = ms / 1000
+        var m = s / 60
+        s -= Math.floor(m) * 60
+        var h = Math.floor(m / 60)
+        m -= h * 60
+        if (s < 10)
+            s = "0" + Math.floor(s)
+        else
+            s = Math.floor(s)
+        if (h == 0)
+            return Math.floor(m) + "." + s
+        if (m < 10)
+            m = "0" + Math.floor(m)
+        else
+            m = Math.floor(m)
+        return h + ":" + m + "." + s
+    }
+
     function playFile(filename) {
         if (filename === "")
             return
@@ -19,6 +38,12 @@ Rectangle {
         audioPlayer.audioDevice = audioDevice
         audioPlayer.filename = filename
         audioPlayer.play()
+
+        var duration = musicModel.durationFromFilename(filename)
+        if (duration === 0)
+            durationText.text = ""
+        else
+            durationText.text = msToString(duration)
     }
 
     function pauseOrPlayFile(filename) {
@@ -115,31 +140,8 @@ Rectangle {
             audioPlayer.windowTitle = title
         }
 
-        function msToString(ms) {
-            var s = ms / 1000
-            var m = s / 60
-            s -= Math.floor(m) * 60
-            var h = Math.floor(m / 60)
-            m -= h * 60
-            if (s < 10)
-                s = "0" + Math.floor(s)
-            else
-                s = Math.floor(s)
-            if (h == 0)
-                return Math.floor(m) + "." + s
-            if (m < 10)
-                m = "0" + Math.floor(m)
-            else
-                m = Math.floor(m)
-            return h + ":" + m + "." + s
-        }
-
         onPositionChanged: {
             positionText.text = msToString(position)
-        }
-
-        onDurationAvailable: {
-            durationText.text = msToString(duration)
         }
     }
 

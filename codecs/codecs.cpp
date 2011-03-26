@@ -9,6 +9,7 @@ Codecs::Codecs(QObject* parent)
     : QObject(parent)
 {
     addCodec<CodecMad>();
+    addAudioFileInformation<AudioFileInformationMad>();
 }
 
 QList<QByteArray> Codecs::codecs()
@@ -18,6 +19,8 @@ QList<QByteArray> Codecs::codecs()
 
 Codec* Codecs::createCodec(const QByteArray &codec)
 {
+    QMutexLocker locker(&m_mutex);
+
     if (!m_codecs.contains(codec))
         return 0;
 
@@ -29,6 +32,23 @@ Codec* Codecs::createCodec(const QByteArray &codec)
     }
 
     return c;
+}
+
+AudioFileInformation* Codecs::createAudioFileInformation(const QByteArray &codec)
+{
+    QMutexLocker locker(&m_mutex);
+
+    if (!m_infos.contains(codec))
+        return 0;
+
+    QObject* obj = m_infos.value(codec).newInstance(Q_ARG(QObject*, 0));
+    AudioFileInformation* a;
+    if (!obj || !(a = qobject_cast<AudioFileInformation*>(obj))) {
+        delete obj;
+        return 0;
+    }
+
+    return a;
 }
 
 void Codecs::init()

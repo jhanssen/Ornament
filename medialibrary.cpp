@@ -1,5 +1,7 @@
 #include "medialibrary.h"
 #include "io.h"
+#include "codecs/codecs.h"
+#include "codecs/codec.h"
 #include <QDebug>
 #include <QDir>
 #include <QTimer>
@@ -33,7 +35,7 @@ struct MediaData
     void clearDatabase();
     int addArtist(const QString& name, bool* added = 0);
     int addAlbum(int artistid, const QString& name, bool* added = 0);
-    int addTrack(int artistid, int albumid, const QString& name, const QString& filename, int trackno, bool* added = 0);
+    int addTrack(int artistid, int albumid, const QString& name, const QString& filename, int trackno, int duration, bool* added = 0);
 
     bool pushState(PathSet& paths, const QString& prefix);
 
@@ -117,7 +119,7 @@ void MediaData::createTables()
     QSqlQuery q(database);
     q.exec(QLatin1String("create table artists (id integer primary key autoincrement, artist text not null)"));
     q.exec(QLatin1String("create table albums (id integer primary key autoincrement, album text not null, artistid integer, foreign key(artistid) references artist(id))"));
-    q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, trackno integer, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
+    q.exec(QLatin1String("create table tracks (id integer primary key autoincrement, track text not null, filename text not null, trackno integer, duration integer, artistid integer, albumid integer, foreign key(artistid) references artist(id), foreign key(albumid) references album(id))"));
 }
 
 void MediaData::clearDatabase()
@@ -183,7 +185,7 @@ int MediaData::addAlbum(int artistid, const QString &name, bool* added)
     return q.lastInsertId().toInt();
 }
 
-int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, int trackno, bool* added)
+int MediaData::addTrack(int artistid, int albumid, const QString &name, const QString &filename, int trackno, int duration, bool* added)
 {
     if (artistid <= 0 || albumid <= 0)
         return qMin(artistid, albumid);
@@ -200,12 +202,13 @@ int MediaData::addTrack(int artistid, int albumid, const QString &name, const QS
         return q.value(0).toInt();
     }
 
-    q.prepare("insert into tracks (track, filename, trackno, artistid, albumid) values (?, ?, ?, ?, ?)");
+    q.prepare("insert into tracks (track, filename, trackno, artistid, albumid, duration) values (?, ?, ?, ?, ?, ?)");
     q.bindValue(0, name);
     q.bindValue(1, filename);
     q.bindValue(2, trackno);
     q.bindValue(3, artistid);
     q.bindValue(4, albumid);
+    q.bindValue(5, duration);
     if (!q.exec()) {
         if (added)
             *added = false;
@@ -262,10 +265,18 @@ bool MediaData::updatePaths(MediaJob* job)
         Tag tag;
         job->readTag(file, tag);
         if (tag.isValid()) {
+            int duration = 0;
+            AudioFileInformation* info = Codecs::instance()->createAudioFileInformation("audio/mp3");
+            if (info) {
+                info->setFilename(file);
+                duration = info->length();
+                delete info;
+            }
+
             bool added;
             int artistid = addArtist(tag.data(QLatin1String("artist")).toString());
             int albumid = addAlbum(artistid, tag.data(QLatin1String("album")).toString());
-            int trackid = addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file, tag.data(QLatin1String("track")).toInt(), &added);
+            int trackid = addTrack(artistid, albumid, tag.data(QLatin1String("title")).toString(), file, tag.data(QLatin1String("track")).toInt(), duration, &added);
 
             if (added) {
                 Artist artist;
@@ -280,6 +291,7 @@ bool MediaData::updatePaths(MediaJob* job)
                 track.id = trackid;
                 track.name = tag.data(QLatin1String("title")).toString();
                 track.trackno = tag.data(QLatin1String("track")).toInt();
+                track.duration = duration;
                 track.filename = file;
 
                 album.tracks[trackid] = track;
@@ -362,7 +374,7 @@ void MediaData::readLibrary(MediaJob* job)
             albumData.id = albumid;
             albumData.name = albumQuery.value(1).toString();
 
-            trackQuery.prepare("select tracks.id, tracks.track, tracks.filename, tracks.trackno from tracks where tracks.artistid = ? and tracks.albumid = ? order by tracks.trackno");
+            trackQuery.prepare("select tracks.id, tracks.track, tracks.filename, tracks.trackno, tracks.duration from tracks where tracks.artistid = ? and tracks.albumid = ? order by tracks.trackno");
             trackQuery.bindValue(0, artistid);
             trackQuery.bindValue(1, albumid);
             trackQuery.exec();
@@ -373,6 +385,7 @@ void MediaData::readLibrary(MediaJob* job)
                 trackData.id = trackQuery.value(0).toInt();
                 trackData.name = trackQuery.value(1).toString();
                 trackData.trackno = trackQuery.value(3).toInt();
+                trackData.duration = trackQuery.value(4).toInt();
                 trackData.filename = trackQuery.value(2).toString();
 
                 albumData.tracks[trackData.id] = trackData;

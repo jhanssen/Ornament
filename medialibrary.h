@@ -40,6 +40,7 @@ struct Track
     QString name;
     QString filename;
     int trackno;
+    int duration;
 };
 
 class MediaLibrary : public QObject

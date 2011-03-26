@@ -39,6 +39,7 @@ public:
     Q_INVOKABLE QString tracknameFromFilename(const QString& filename) const;
     Q_INVOKABLE int positionFromFilename(const QString& filename) const;
     Q_INVOKABLE int trackCount() const;
+    Q_INVOKABLE int durationFromFilename(const QString& filename) const;
 
 private slots:
     void updateArtist(const Artist& artist);

@@ -39,7 +39,6 @@ signals:
     // ### fix this once QML accepts enums as arguments in signals
     void stateChanged();
     void artworkAvailable();
-    void durationAvailable(int duration);
     void positionChanged(int position);
 
 public slots:

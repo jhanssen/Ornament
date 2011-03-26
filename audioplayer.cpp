@@ -134,9 +134,6 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
-        AudioFileInformation info = codec->fileInformation(m_filename);
-        emit durationAvailable(info.length());
-
         FileReader* file = new FileReader(m_filename);
         if (!file->open(FileReader::ReadOnly)) {
             delete codec;

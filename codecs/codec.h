@@ -7,15 +7,19 @@
 
 class Codec;
 
-class AudioFileInformation
+class AudioFileInformation : public QObject
 {
+    Q_OBJECT
 public:
-    AudioFileInformation(int length);
+    AudioFileInformation(QObject* parent = 0);
 
-    int length() const;
+    void setFilename(const QString& filename);
+    QString filename() const;
+
+    virtual int length() const = 0;
 
 private:
-    int m_length;
+    QString m_filename;
 };
 
 class Codec : public QObject
@@ -28,8 +32,6 @@ public:
 
     virtual bool init(const QAudioFormat& format) = 0;
     virtual void deinit() = 0;
-
-    virtual AudioFileInformation fileInformation(const QString& filename) const = 0;
 
 signals:
     void output(QByteArray* data);

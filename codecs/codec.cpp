@@ -1,13 +1,18 @@
 #include "codecs/codec.h"
 
-AudioFileInformation::AudioFileInformation(int length)
-    : m_length(length)
+AudioFileInformation::AudioFileInformation(QObject *parent)
+    : QObject(parent)
 {
 }
 
-int AudioFileInformation::length() const
+void AudioFileInformation::setFilename(const QString &filename)
 {
-    return m_length;
+    m_filename = filename;
+}
+
+QString AudioFileInformation::filename() const
+{
+    return m_filename;
 }
 
 Codec::Codec(QObject *parent)

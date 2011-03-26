@@ -7,6 +7,17 @@
 #include <QHash>
 #include <QList>
 
+class AudioFileInformationMad : public AudioFileInformation
+{
+    Q_OBJECT
+
+    Q_CLASSINFO("mimetype", "audio/mp3")
+public:
+    Q_INVOKABLE AudioFileInformationMad(QObject* parent = 0);
+
+    int length() const;
+};
+
 class CodecMad : public Codec
 {
     Q_OBJECT
@@ -18,8 +29,6 @@ public:
 
     bool init(const QAudioFormat &format);
     void deinit();
-
-    AudioFileInformation fileInformation(const QString &filename) const;
 
 public slots:
     void feed(const QByteArray &data, bool end = false);

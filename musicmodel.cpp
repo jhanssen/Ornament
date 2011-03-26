@@ -47,6 +47,7 @@ public:
     QString track;
     QString filename;
     int trackno;
+    int duration;
 
     MusicModelArtist* artist;
     MusicModelAlbum* album;
@@ -175,6 +176,7 @@ void MusicModel::updateArtist(const Artist &artist)
             currentTrack->track = track.name;
             currentTrack->filename = track.filename;
             currentTrack->trackno = track.trackno;
+            currentTrack->duration = track.duration;
             currentTrack->artist = currentArtist;
             currentTrack->album = currentAlbum;
         }
@@ -551,6 +553,18 @@ int MusicModel::positionFromFilename(const QString &filename) const
         return -1;
 
     return it.value()->pos;
+}
+
+int MusicModel::durationFromFilename(const QString &filename) const
+{
+    if (filename.isEmpty())
+        return -1;
+
+    QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
+    if (it == m_tracksFile.end())
+        return 0;
+
+    return it.value()->duration;
 }
 
 QString MusicModel::tracknameFromFilename(const QString &filename) const

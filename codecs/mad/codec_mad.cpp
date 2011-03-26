@@ -70,54 +70,6 @@ static signed int MadFixedToInt(mad_fixed_t Fixed)
     return((signed int)Fixed);
 }
 
-CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_buffer(0)
-{
-}
-
-CodecMad::~CodecMad()
-{
-    deinit();
-}
-
-bool CodecMad::init(const QAudioFormat& format)
-{
-    m_format = format;
-
-    qDebug() << "format:";
-    qDebug() << format.channelCount();
-    qDebug() << format.sampleRate();
-    qDebug() << format.sampleSize();
-    qDebug() << format.byteOrder();
-
-    mad_stream_init(&m_stream);
-    mad_frame_init(&m_frame);
-    mad_synth_init(&m_synth);
-    mad_timer_reset(&m_timer);
-
-    if (!m_buffer)
-        m_buffer = new unsigned char[INPUT_BUFFER_SIZE + MAD_BUFFER_GUARD];
-
-    // ### need to take m_format more into account here
-    if (format.sampleSize() == 24)
-        decodeFunc = &CodecMad::decode24;
-    else
-        decodeFunc = &CodecMad::decode16;
-
-    return true;
-}
-
-void CodecMad::deinit()
-{
-    delete[] m_buffer;
-    m_buffer = 0;
-
-    mad_stream_finish(&m_stream);
-    mad_frame_finish(&m_frame);
-    mad_synth_finish(&m_synth);
-    mad_timer_reset(&m_timer);
-}
-
 static int timerToMs(mad_timer_t* timer)
 {
     static double res = (double)MAD_TIMER_RESOLUTION / 1000.;
@@ -127,11 +79,20 @@ static int timerToMs(mad_timer_t* timer)
     return msec;
 }
 
-AudioFileInformation CodecMad::fileInformation(const QString &filename) const
+AudioFileInformationMad::AudioFileInformationMad(QObject *parent)
+    : AudioFileInformation(parent)
 {
-    QFile file(filename);
+}
+
+int AudioFileInformationMad::length() const
+{
+    QString fn = filename();
+    if (fn.isEmpty())
+        return 0;
+
+    QFile file(fn);
     if (!file.open(QFile::ReadOnly))
-        return AudioFileInformation(0);
+        return 0;
 
     mad_stream infostream;
     mad_header infoheader;
@@ -183,7 +144,55 @@ AudioFileInformation CodecMad::fileInformation(const QString &filename) const
     mad_header_finish(&infoheader);
     delete[] buf;
 
-    return AudioFileInformation(timerToMs(&infotimer));
+    return timerToMs(&infotimer);
+}
+
+CodecMad::CodecMad(QObject *parent)
+    : Codec(parent), m_buffer(0)
+{
+}
+
+CodecMad::~CodecMad()
+{
+    deinit();
+}
+
+bool CodecMad::init(const QAudioFormat& format)
+{
+    m_format = format;
+
+    qDebug() << "format:";
+    qDebug() << format.channelCount();
+    qDebug() << format.sampleRate();
+    qDebug() << format.sampleSize();
+    qDebug() << format.byteOrder();
+
+    mad_stream_init(&m_stream);
+    mad_frame_init(&m_frame);
+    mad_synth_init(&m_synth);
+    mad_timer_reset(&m_timer);
+
+    if (!m_buffer)
+        m_buffer = new unsigned char[INPUT_BUFFER_SIZE + MAD_BUFFER_GUARD];
+
+    // ### need to take m_format more into account here
+    if (format.sampleSize() == 24)
+        decodeFunc = &CodecMad::decode24;
+    else
+        decodeFunc = &CodecMad::decode16;
+
+    return true;
+}
+
+void CodecMad::deinit()
+{
+    delete[] m_buffer;
+    m_buffer = 0;
+
+    mad_stream_finish(&m_stream);
+    mad_frame_finish(&m_frame);
+    mad_synth_finish(&m_synth);
+    mad_timer_reset(&m_timer);
 }
 
 void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* outsize)
