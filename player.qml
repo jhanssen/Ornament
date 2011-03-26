@@ -114,6 +114,33 @@ Rectangle {
             }
             audioPlayer.windowTitle = title
         }
+
+        function msToString(ms) {
+            var s = ms / 1000
+            var m = s / 60
+            s -= Math.floor(m) * 60
+            var h = Math.floor(m / 60)
+            m -= h * 60
+            if (s < 10)
+                s = "0" + Math.floor(s)
+            else
+                s = Math.floor(s)
+            if (h == 0)
+                return Math.floor(m) + "." + s
+            if (m < 10)
+                m = "0" + Math.floor(m)
+            else
+                m = Math.floor(m)
+            return h + ":" + m + "." + s
+        }
+
+        onPositionChanged: {
+            positionText.text = msToString(position)
+        }
+
+        onDurationAvailable: {
+            durationText.text = msToString(duration)
+        }
     }
 
     MediaModel {
@@ -143,6 +170,8 @@ Rectangle {
         Button { id: plusButton; text: "+"; anchors.top: parent.top; opacity: 0; onClicked: { addMediaItem() } }
         Button { id: minusButton; text: "-"; anchors.top: plusButton.bottom; opacity: 0; onClicked: { removeMediaItem() } }
         Button { id: refreshButton; text: "r"; anchors.top: minusButton.bottom; opacity: 0; onClicked: { refreshMediaList() } }
+        Text { id: positionText; anchors.margins: 9; anchors.top: mediaButton.bottom; anchors.left: parent.left; anchors.right: parent.right; horizontalAlignment: Text.AlignHCenter; color: "#eeeeee" }
+        Text { id: durationText; anchors.margins: 9; anchors.top: positionText.bottom; anchors.left: parent.left; anchors.right: parent.right; horizontalAlignment: Text.AlignHCenter; color: "#eeeeee" }
 
         Component.onCompleted: { state = "music" }
 

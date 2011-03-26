@@ -39,6 +39,8 @@ signals:
     // ### fix this once QML accepts enums as arguments in signals
     void stateChanged();
     void artworkAvailable();
+    void durationAvailable(int duration);
+    void positionChanged(int position);
 
 public slots:
     void play();
@@ -48,6 +50,7 @@ public slots:
 private slots:
     void outputStateChanged(QAudio::State state);
     void artworkReady(const QImage& image);
+    void intervalNotified();
 
 private:
     QByteArray mimeType(const QString& filename) const;

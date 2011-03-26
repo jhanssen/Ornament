@@ -134,6 +134,9 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
+        AudioFileInformation info = codec->fileInformation(m_filename);
+        emit durationAvailable(info.length());
+
         FileReader* file = new FileReader(m_filename);
         if (!file->open(FileReader::ReadOnly)) {
             delete codec;
@@ -159,10 +162,20 @@ void AudioPlayer::play()
             return;
         }
 
+        m_audio->output()->setNotifyInterval(100);
+        connect(m_audio->output(), SIGNAL(notify()), this, SLOT(intervalNotified()));
+
         m_audio->output()->start(m_codec);
     } else if (m_state == Paused) {
         m_audio->output()->resume();
     }
+}
+
+void AudioPlayer::intervalNotified()
+{
+    qint64 time = m_audio->output()->processedUSecs();
+    time /= 1000;
+    emit positionChanged(time);
 }
 
 void AudioPlayer::pause()

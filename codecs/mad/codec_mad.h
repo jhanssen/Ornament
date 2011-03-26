@@ -17,6 +17,9 @@ public:
     ~CodecMad();
 
     bool init(const QAudioFormat &format);
+    void deinit();
+
+    AudioFileInformation fileInformation(const QString &filename) const;
 
 public slots:
     void feed(const QByteArray &data, bool end = false);
