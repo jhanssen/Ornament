@@ -193,6 +193,11 @@ void MusicModel::updateArtist(const Artist &artist)
         beginInsertRows(QModelIndex(), albumsOldSize, albumsOldSize + albumsInserted - 1);
         endInsertRows();
     }
+
+    if (!shouldReset && !insertTrack) {
+        emit layoutAboutToBeChanged();
+        emit layoutChanged();
+    }
 }
 
 void MusicModel::removeTrack(int trackid)
