@@ -8,7 +8,6 @@ Rectangle {
     id: topLevel
 
     property string songTitle: ""
-    property string windowTitle: ""
 
     SystemPalette { id: activePalette }
 
@@ -131,13 +130,7 @@ Rectangle {
                 playButton.image = "icons/play.svg"
             }
 
-            var title = topLevel.windowTitle
-            if (topLevel.songTitle.length > 0) {
-                if (title.length > 0)
-                    title += " "
-                title += "(P: " + topLevel.songTitle + ")"
-            }
-            audioPlayer.windowTitle = title
+            audioPlayer.windowTitle = topLevel.songTitle
         }
 
         onPositionChanged: {
@@ -304,17 +297,17 @@ Rectangle {
                 Transition {
                     from: "music"; to: "media"
                     SequentialAnimation {
-                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 1; to: 0; duration: 200 }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
                         ScriptAction { script: { list.model = mediaModel; list.delegate = mediaDelegate } }
-                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 1; duration: 200 }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
                     }
                 },
                 Transition {
                     from: "media"; to: "music"
                     SequentialAnimation {
-                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 1; to: 0; duration: 200 }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
                         ScriptAction { script: { list.delegate = musicDelegate; list.model = musicModel } }
-                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 1; duration: 200 }
+                        PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
                     }
                 }
             ]
@@ -332,6 +325,18 @@ Rectangle {
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.RightButton
+                hoverEnabled: true
+
+                onPositionChanged: {
+                    if (mouse.y < 10)
+                        statusWindow.state = "shown"
+                    else
+                        statusWindow.state = "hidden"
+                }
+
+                onExited: {
+                    statusWindow.state = "hidden"
+                }
 
                 onClicked: {
                     if (list.state === "media")
@@ -360,20 +365,17 @@ Rectangle {
                                 musicModel.currentArtistId = -1
 
                             if (musicModel.currentArtistId > 0) {
+                                statusArtistText.text = musicModel.currentArtist.name
                                 if (musicModel.currentAlbumId > 0)
-                                    topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                                    statusAlbumText.text = musicModel.currentAlbum.name
                                 else
-                                    topLevel.windowTitle = musicModel.currentArtist.name
-                            } else
-                                topLevel.windowTitle = ""
-
-                            title = topLevel.windowTitle
-                            if (topLevel.songTitle.length > 0) {
-                                if (title.length > 0)
-                                    title += " "
-                                title += "(P: " + topLevel.songTitle + ")"
+                                    statusAlbumText.text = ""
+                            } else {
+                                statusArtistText.text = ""
+                                statusAlbumText.text = ""
                             }
-                            audioPlayer.windowTitle = title
+
+                            audioPlayer.windowTitle = topLevel.songTitle
 
                             return
                         }
@@ -384,20 +386,17 @@ Rectangle {
                             musicModel.currentAlbumId = listWrapper.currentMusicId
 
                         if (musicModel.currentArtistId > 0) {
+                            statusArtistText.text = musicModel.currentArtist.name
                             if (musicModel.currentAlbumId > 0)
-                                topLevel.windowTitle = musicModel.currentArtist.name + " - " + musicModel.currentAlbum.name
+                                statusAlbumText.text = musicModel.currentAlbum.name
                             else
-                                topLevel.windowTitle = musicModel.currentArtist.name
-                        } else
-                            topLevel.windowTitle = ""
-
-                        title = topLevel.windowTitle
-                        if (topLevel.songTitle.length > 0) {
-                            if (title.length > 0)
-                                title += " "
-                            title += "(P: " + topLevel.songTitle + ")"
+                                statusAlbumText.text = ""
+                        } else {
+                            statusArtistText.text = ""
+                            statusAlbumText.text = ""
                         }
-                        audioPlayer.windowTitle = title
+
+                        audioPlayer.windowTitle = topLevel.songTitle
 
                         var cur = musicModel.positionFromFilename(audioPlayer.filename)
                         if (cur !== -1)
@@ -495,5 +494,59 @@ Rectangle {
                 }
             }
         }
+    }
+
+    Rectangle {
+        id: statusWindow
+
+        Text {
+            id: statusArtistText
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: 20
+
+            clip: true
+
+            horizontalAlignment: Text.AlignHCenter
+            color: "#eeeeee"
+        }
+        Text {
+            id: statusAlbumText
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: statusArtistText.bottom
+            height: 20
+
+            clip: true
+
+            horizontalAlignment: Text.AlignHCenter
+            color: "#eeeeee"
+        }
+        anchors.bottom: listWrapper.top
+        anchors.left: listWrapper.left
+        anchors.right: listWrapper.right
+        height: 40
+
+        color: "#444444"
+
+        Component.onCompleted: { state = "hidden" }
+
+        states: [
+            State {
+                name: "shown"
+                AnchorChanges { target: statusWindow; anchors.bottom: undefined; anchors.top: listWrapper.top }
+            },
+            State {
+                name: "hidden"
+                AnchorChanges { target: statusWindow; anchors.top: undefined; anchors.bottom: listWrapper.top }
+            }
+        ]
+        transitions: [
+            Transition {
+                AnchorAnimation { duration: 200 }
+            }
+        ]
     }
 }
