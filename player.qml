@@ -7,6 +7,8 @@ import MusicModel 1.0
 Rectangle {
     id: topLevel
 
+    property string artistName: ""
+    property string albumName: ""
     property string songTitle: ""
 
     SystemPalette { id: activePalette }
@@ -118,19 +120,33 @@ Rectangle {
                     list.currentIndex = cur
 
                 // ### this is not the best way of getting the current track name I'm sure
+                topLevel.artistName = musicModel.artistnameFromFilename(audioPlayer.filename)
+                topLevel.albumName = musicModel.albumnameFromFilename(audioPlayer.filename)
                 topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
+                topLevel.artistName = ""
+                topLevel.albumName = ""
+                topLevel.songTitle = ""
+
                 if (!playNext() && artworkContainer.opacity > 0) {
                     artworkFadeOut.start()
                     playButton.image = "icons/play.svg"
                 }
             } else {
-                if (state === AudioPlayer.Stopped && artworkContainer.opacity > 0)
-                    artworkFadeOut.start()
+                if (state === AudioPlayer.Stopped) {
+                    topLevel.artistName = ""
+                    topLevel.albumName = ""
+                    topLevel.songTitle = ""
+
+                    if (artworkContainer.opacity > 0)
+                        artworkFadeOut.start()
+                }
                 playButton.image = "icons/play.svg"
             }
 
             audioPlayer.windowTitle = topLevel.songTitle
+            statusAlbumText.text = topLevel.albumName
+            statusArtistText.text = topLevel.artistName
         }
 
         onPositionChanged: {
@@ -364,19 +380,6 @@ Rectangle {
                             else if (musicModel.currentArtistId !== -1)
                                 musicModel.currentArtistId = -1
 
-                            if (musicModel.currentArtistId > 0) {
-                                statusArtistText.text = musicModel.currentArtist.name
-                                if (musicModel.currentAlbumId > 0)
-                                    statusAlbumText.text = musicModel.currentAlbum.name
-                                else
-                                    statusAlbumText.text = ""
-                            } else {
-                                statusArtistText.text = ""
-                                statusAlbumText.text = ""
-                            }
-
-                            audioPlayer.windowTitle = topLevel.songTitle
-
                             return
                         }
 
@@ -384,19 +387,6 @@ Rectangle {
                             musicModel.currentArtistId = listWrapper.currentMusicId
                         else if (musicModel.currentAlbumId === -1)
                             musicModel.currentAlbumId = listWrapper.currentMusicId
-
-                        if (musicModel.currentArtistId > 0) {
-                            statusArtistText.text = musicModel.currentArtist.name
-                            if (musicModel.currentAlbumId > 0)
-                                statusAlbumText.text = musicModel.currentAlbum.name
-                            else
-                                statusAlbumText.text = ""
-                        } else {
-                            statusArtistText.text = ""
-                            statusAlbumText.text = ""
-                        }
-
-                        audioPlayer.windowTitle = topLevel.songTitle
 
                         var cur = musicModel.positionFromFilename(audioPlayer.filename)
                         if (cur !== -1)

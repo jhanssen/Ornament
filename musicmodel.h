@@ -36,6 +36,8 @@ public:
 
     Q_INVOKABLE QString filenameById(int track) const;
     Q_INVOKABLE QString filenameByPosition(int position) const;
+    Q_INVOKABLE QString artistnameFromFilename(const QString& filename) const;
+    Q_INVOKABLE QString albumnameFromFilename(const QString& filename) const;
     Q_INVOKABLE QString tracknameFromFilename(const QString& filename) const;
     Q_INVOKABLE int positionFromFilename(const QString& filename) const;
     Q_INVOKABLE int trackCount() const;

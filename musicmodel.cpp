@@ -572,6 +572,30 @@ int MusicModel::durationFromFilename(const QString &filename) const
     return it.value()->duration;
 }
 
+QString MusicModel::artistnameFromFilename(const QString &filename) const
+{
+    if (filename.isEmpty())
+        return QString();
+
+    QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
+    if (it == m_tracksFile.end())
+        return QString();
+
+    return it.value()->artist->artist;
+}
+
+QString MusicModel::albumnameFromFilename(const QString &filename) const
+{
+    if (filename.isEmpty())
+        return QString();
+
+    QHash<QString, MusicModelTrack*>::ConstIterator it = m_tracksFile.find(filename);
+    if (it == m_tracksFile.end())
+        return QString();
+
+    return it.value()->album->album;
+}
+
 QString MusicModel::tracknameFromFilename(const QString &filename) const
 {
     if (filename.isEmpty())
