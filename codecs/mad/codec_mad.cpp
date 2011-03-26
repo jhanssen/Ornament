@@ -35,6 +35,8 @@
  ****************************************************************************/
 
 #include "codec_mad.h"
+#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2frame.h"
+#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2framefactory.h"
 #include <QDebug>
 
 #define INPUT_BUFFER_SIZE (8196 * 5)
@@ -196,25 +198,49 @@ void CodecMad::feed(const QByteArray& data, bool end)
 
 CodecMad::Status CodecMad::decode()
 {
-    if (mad_frame_decode(&m_frame, &m_stream)) {
-        if (MAD_RECOVERABLE(m_stream.error)) {
-            // good stuff, but we need to return
-            qDebug() << "recoverable foo" << m_stream.error;
-            return Ok;
-        } else {
-            if (m_stream.error == MAD_ERROR_BUFLEN
-                || m_stream.error == MAD_ERROR_BUFPTR) {
-                // this is fine as well
-                return NeedInput;
+    for (;;) {
+        if (mad_header_decode(&m_frame.header, &m_stream)) {
+            if (MAD_RECOVERABLE(m_stream.error)) {
+                if (m_stream.error == MAD_ERROR_LOSTSYNC) {
+                    TagLib::ID3v2::Header header;
+                    uint size = (int)(m_stream.bufend - m_stream.this_frame);
+                    if (size >= header.size()) {
+                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), header.size()));
+                        uint tagsize = header.tagSize();
+                        if (tagsize > 0)
+                            mad_stream_skip(&m_stream, tagsize);
+                    }
+
+                    continue;
+                }
+                // good stuff, but we need to return
+                qDebug() << "recoverable foo" << m_stream.error;
+                return Ok;
             } else {
-                // ### ow, set some error status here!
-                qDebug() << "error foo" << m_stream.error;
-                return Error;
+                if (m_stream.error == MAD_ERROR_BUFLEN
+                        || m_stream.error == MAD_ERROR_BUFPTR) {
+                    // this is fine as well
+                    return NeedInput;
+                } else {
+                    // ### ow, set some error status here!
+                    qDebug() << "error foo" << m_stream.error;
+                    return Error;
+                }
             }
         }
+        break;
     }
 
     mad_timer_add(&m_timer, m_frame.header.duration);
+
+    if (mad_frame_decode(&m_frame, &m_stream)) {
+        if (MAD_RECOVERABLE(m_stream.error))
+            return Ok;
+        else if (m_stream.error == MAD_ERROR_BUFLEN || m_stream.error == MAD_ERROR_BUFPTR)
+            return NeedInput;
+        else
+            return Error;
+    }
 
     QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
     char* outptr = out->data();
