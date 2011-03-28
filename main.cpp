@@ -10,6 +10,27 @@
 #include <QDeclarativeView>
 #include <QDeclarativeEngine>
 
+class MainView : public QDeclarativeView
+{
+public:
+    MainView(const QUrl& url, QWidget* parent = 0);
+
+protected:
+    void showEvent(QShowEvent* event);
+};
+
+MainView::MainView(const QUrl& url, QWidget* parent)
+    : QDeclarativeView(url, parent)
+{
+}
+
+void MainView::showEvent(QShowEvent* event)
+{
+    raise();
+
+    QDeclarativeView::showEvent(event);
+}
+
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
@@ -26,7 +47,7 @@ int main(int argc, char** argv)
     qmlRegisterType<MusicModel>("MusicModel", 1, 0, "MusicModel");
     qmlRegisterType<MediaModel>("MediaModel", 1, 0, "MediaModel");
 
-    QDeclarativeView view(QUrl::fromLocalFile("player.qml"));
+    MainView view(QUrl::fromLocalFile("player.qml"));
 
     view.engine()->addImageProvider(QLatin1String("artwork"), new AudioImageProvider);
 
