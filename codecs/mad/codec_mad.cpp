@@ -43,6 +43,7 @@
 
 #define INPUT_BUFFER_SIZE (8196 * 5)
 #define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
+#define TAG_MAX_SIZE (1024 * 10000)
 
 static signed short MadFixedToSshort(mad_fixed_t Fixed)
 {
@@ -119,11 +120,11 @@ int AudioFileInformationMad::length() const
                     break;
                 if (infostream.error == MAD_ERROR_LOSTSYNC) {
                     TagLib::ID3v2::Header header;
-                    uint size = (int)(infostream.bufend - infostream.this_frame);
+                    uint size = (uint)(infostream.bufend - infostream.this_frame);
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), header.size()));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0) {
+                        if (tagsize > 0 && tagsize < TAG_MAX_SIZE) {
                             mad_stream_skip(&infostream, tagsize);
                             continue;
                         }
@@ -293,11 +294,11 @@ CodecMad::Status CodecMad::decode()
             if (MAD_RECOVERABLE(m_stream.error)) {
                 if (m_stream.error == MAD_ERROR_LOSTSYNC) {
                     TagLib::ID3v2::Header header;
-                    uint size = (int)(m_stream.bufend - m_stream.this_frame);
+                    uint size = (uint)(m_stream.bufend - m_stream.this_frame);
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), header.size()));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0)
+                        if (tagsize > 0 && tagsize <= TAG_MAX_SIZE)
                             mad_stream_skip(&m_stream, tagsize);
                     }
 
