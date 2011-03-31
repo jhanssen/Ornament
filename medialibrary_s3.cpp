@@ -4,6 +4,7 @@
 #include <libs3.h>
 #include <QTimer>
 #include <QStringList>
+#include <QUrl>
 #include <QDebug>
 
 class MediaLibraryS3Private : public QObject
@@ -143,7 +144,8 @@ void MediaLibraryS3Private::requestArtwork(const QString &filename)
     objectHandler.responseHandler.completeCallback = completeCallback;
     objectHandler.responseHandler.propertiesCallback = propertiesCallback;
     objectHandler.getObjectDataCallback = dataCallback;
-    S3_get_object(m_context, filename.toUtf8().constData(), 0, 0, 0, 0, &objectHandler, this);
+    QByteArray key = QUrl::toPercentEncoding(filename, "/_");
+    S3_get_object(m_context, key.constData(), 0, 0, 0, 0, &objectHandler, this);
 
     m_mode = None;
 }
@@ -198,7 +200,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
         return;
 
     const QByteArray& artistData = items.at(0);
-    QString artist = QString::fromUtf8(artistData.constData(), artistData.size());
+    QString artist = QUrl::fromPercentEncoding(artistData);
 
     int artistid;
     if (!m_artistIds.contains(artist)) {
@@ -220,7 +222,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
         return;
 
     const QByteArray& albumData = items.at(1);
-    QString album = QString::fromUtf8(albumData.constData(), albumData.size());
+    QString album = QUrl::fromPercentEncoding(albumData);
 
     int albumid;
     if (!m_albumIds.contains(artist + "/" + album)) {
@@ -242,7 +244,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
         return;
 
     const QByteArray& trackData = items.at(2);
-    QString track = QString::fromUtf8(trackData.constData(), trackData.size());
+    QString track = QUrl::fromPercentEncoding(trackData);
 
     QByteArray mime = MediaLibrary::instance()->mimeType(track);
     if (mime.startsWith("image/")

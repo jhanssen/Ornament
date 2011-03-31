@@ -74,8 +74,9 @@ static int dataCallback(int bufferSize, char* buffer, void* callbackData)
 
 static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails, void* callbackData)
 {
-    Q_UNUSED(status)
     Q_UNUSED(callbackData)
+
+    qDebug() << "complete" << status;
 
     if (errorDetails) {
         if (errorDetails->message)
@@ -135,12 +136,10 @@ void Updater::update(const QString &path)
     QTimer::singleShot(0, this, SLOT(startUpdate()));
 }
 
-static inline QString encodeFilename(int trackno, const QString& track, int duration, const QString& ext)
+static inline QByteArray encodeFilename(int trackno, const QString& track, int duration, const QString& ext)
 {
-    QString t(track);
-    t.replace(QLatin1Char('_'), QLatin1Char('-'));
-    t.replace(QLatin1Char('/'), QLatin1Char('~'));
-    return QString("%1_%2_%3.%4").arg(trackno).arg(t).arg(duration).arg(ext);
+    QByteArray t = QUrl::toPercentEncoding(track);
+    return QByteArray::number(trackno) + '_' + t + '_' + QByteArray::number(duration) + '.' + ext.toLatin1();
 }
 
 void Updater::startUpdate()
@@ -181,12 +180,12 @@ void Updater::startUpdate()
             if (m_current->open(QFile::ReadOnly)) {
                 updateProgressName();
 
-                QString key = artist + "/" + album + "/" + encodeFilename(trackno, track, duration, info.suffix());
+                QByteArray key = QUrl::toPercentEncoding(artist) + "/" + QUrl::toPercentEncoding(album) + "/" + encodeFilename(trackno, track, duration, info.suffix());
                 S3PutObjectHandler objectHandler;
                 objectHandler.responseHandler.completeCallback = completeCallback;
                 objectHandler.responseHandler.propertiesCallback = propertiesCallback;
                 objectHandler.putObjectDataCallback = dataCallback;
-                S3_put_object(context, key.toUtf8().constData(), m_current->size(), 0, 0, &objectHandler, this);
+                S3_put_object(context, key.constData(), m_current->size(), 0, 0, &objectHandler, this);
             }
             delete m_current;
 

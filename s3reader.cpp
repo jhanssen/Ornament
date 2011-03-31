@@ -3,6 +3,7 @@
 #include "buffer.h"
 #include "awsconfig.h"
 #include <libs3.h>
+#include <QUrl>
 #include <QDebug>
 
 class S3ReaderJob : public IOJob
@@ -92,7 +93,8 @@ void S3ReaderJob::startJob()
     objectHandler.responseHandler.completeCallback = completeCallback;
     objectHandler.responseHandler.propertiesCallback = propertiesCallback;
     objectHandler.getObjectDataCallback = dataCallback;
-    S3_get_object(context, filename.toUtf8(), 0, 0, 0, 0, &objectHandler, this);
+    QByteArray key = QUrl::toPercentEncoding(filename, "/_");
+    S3_get_object(context, key.constData(), 0, 0, 0, 0, &objectHandler, this);
 }
 
 void S3ReaderJob::emitAtEnd()
