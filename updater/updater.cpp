@@ -203,8 +203,8 @@ void Updater::startUpdate()
                     objectHandler.responseHandler.completeCallback = completeCallback;
                     objectHandler.responseHandler.propertiesCallback = propertiesCallback;
                     objectHandler.putObjectDataCallback = dataCallback;
-                    QString key = artist + "/" + album + "/Folder.png";
-                    S3_put_object(context, key.toUtf8().constData(), m_current->size(), 0, 0, &objectHandler, this);
+                    QByteArray key = QUrl::toPercentEncoding(artist) + "/" + QUrl::toPercentEncoding(album) + "/Folder.png";
+                    S3_put_object(context, key.constData(), m_current->size(), 0, 0, &objectHandler, this);
                     m_writingArtwork = false;
                 }
                 delete m_current;
