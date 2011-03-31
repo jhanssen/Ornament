@@ -149,7 +149,7 @@ int AudioFileInformationMad::length() const
 }
 
 CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_buffer(0)
+    : Codec(parent), m_buffer(0), m_tagEncountered(false)
 {
 }
 
@@ -194,6 +194,8 @@ void CodecMad::deinit()
     mad_frame_finish(&m_frame);
     mad_synth_finish(&m_synth);
     mad_timer_reset(&m_timer);
+
+    m_tagEncountered = false;
 }
 
 void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* outsize)
@@ -293,13 +295,18 @@ CodecMad::Status CodecMad::decode()
         if (mad_header_decode(&m_frame.header, &m_stream)) {
             if (MAD_RECOVERABLE(m_stream.error)) {
                 if (m_stream.error == MAD_ERROR_LOSTSYNC) {
+                    if (m_tagEncountered)
+                        continue;
+
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(m_stream.bufend - m_stream.this_frame);
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0 && tagsize <= TAG_MAX_SIZE)
+                        if (tagsize > 0 && tagsize <= TAG_MAX_SIZE) {
                             mad_stream_skip(&m_stream, tagsize);
+                            m_tagEncountered = true;
+                        }
                     }
 
                     continue;
