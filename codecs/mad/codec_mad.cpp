@@ -122,7 +122,7 @@ int AudioFileInformationMad::length() const
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(infostream.bufend - infostream.this_frame);
                     if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), header.size()));
+                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
                         uint tagsize = header.tagSize();
                         if (tagsize > 0 && tagsize < TAG_MAX_SIZE) {
                             mad_stream_skip(&infostream, tagsize);
@@ -296,7 +296,7 @@ CodecMad::Status CodecMad::decode()
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(m_stream.bufend - m_stream.this_frame);
                     if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), header.size()));
+                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
                         uint tagsize = header.tagSize();
                         if (tagsize > 0 && tagsize <= TAG_MAX_SIZE)
                             mad_stream_skip(&m_stream, tagsize);
