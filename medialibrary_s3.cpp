@@ -14,8 +14,10 @@ public:
 
     void parseContent(const S3ListBucketContent& content);
     void updateMetadata(const char* key, const char* value);
+    void requestArtwork(const QString& filename);
 
     void emitComplete();
+    void emitArtwork();
 
     S3BucketContext* m_context;
     S3ListBucketHandler* m_listHandler;
@@ -26,13 +28,15 @@ public:
     QHash<QString, int> m_albumIds;
     QHash<QString, int> m_trackIds;
 
+    QHash<int, int> m_albumToTrack;
     QHash<int, QString> m_albumart;
 
     QByteArray m_processing;
     QByteArray m_nextmarker;
+    QByteArray m_artwork;
     bool m_clearmarker;
 
-    enum Mode { None, List, Tracks } m_mode;
+    enum Mode { None, List, Tracks, Artwork } m_mode;
 
     int m_idcount;
 
@@ -43,9 +47,18 @@ public slots:
 
 signals:
     void complete();
+    void artwork(const QImage& image);
 };
 
 #include "medialibrary_s3.moc"
+
+static S3Status dataCallback(int bufferSize, const char* buffer, void* callbackData)
+{
+    MediaLibraryS3Private* priv = reinterpret_cast<MediaLibraryS3Private*>(callbackData);
+    priv->m_artwork += QByteArray::fromRawData(buffer, bufferSize);
+
+    return S3StatusOK;
+}
 
 static S3Status listBucketCallback(int isTruncated, const char* nextmarker, int contentsCount, const S3ListBucketContent* contents,
                                    int commonPrefixesCount, const char** commonPrefixes, void* callbackData)
@@ -80,7 +93,10 @@ static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails
     }
 
     MediaLibraryS3Private* priv = reinterpret_cast<MediaLibraryS3Private*>(callbackData);
-    priv->emitComplete();
+    if (priv->m_mode == MediaLibraryS3Private::List)
+        priv->emitComplete();
+    else if (priv->m_mode == MediaLibraryS3Private::Artwork)
+        priv->emitArtwork();
 }
 
 static S3Status propertiesCallback(const S3ResponseProperties* properties, void* callbackData)
@@ -118,9 +134,33 @@ MediaLibraryS3Private::~MediaLibraryS3Private()
     S3_deinitialize();
 }
 
+void MediaLibraryS3Private::requestArtwork(const QString &filename)
+{
+    m_mode = Artwork;
+
+    S3GetObjectHandler objectHandler;
+    objectHandler.responseHandler.completeCallback = completeCallback;
+    objectHandler.responseHandler.propertiesCallback = propertiesCallback;
+    objectHandler.getObjectDataCallback = dataCallback;
+    S3_get_object(m_context, filename.toUtf8().constData(), 0, 0, 0, 0, &objectHandler, this);
+
+    m_mode = None;
+}
+
 void MediaLibraryS3Private::emitComplete()
 {
     emit complete();
+}
+
+void MediaLibraryS3Private::emitArtwork()
+{
+    QImage image = QImage::fromData(m_artwork);
+    m_artwork.clear();
+
+    if (image.isNull())
+        return;
+
+    emit artwork(image);
 }
 
 void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
@@ -196,6 +236,8 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
         t.id = trackid;
         t.filename = artist + "/" + album + "/" + track;
         al->tracks[trackid] = t;
+
+        m_albumToTrack[trackid] = al->id;
 
         qDebug() << "adding track" << artist << album << track << trackid;
 
@@ -286,13 +328,13 @@ void MediaLibraryS3Private::processTracks()
 
     m_artistIds.clear();
     m_albumIds.clear();
-    m_trackIds.clear();
 }
 
 MediaLibraryS3::MediaLibraryS3(QObject *parent)
     : MediaLibrary(parent), priv(new MediaLibraryS3Private(this))
 {
     connect(priv, SIGNAL(complete()), this, SLOT(S3complete()));
+    connect(priv, SIGNAL(artwork(QImage)), this, SIGNAL(artwork(QImage)));
 }
 
 MediaLibraryS3::~MediaLibraryS3()
@@ -351,6 +393,10 @@ void MediaLibraryS3::S3complete()
 
 void MediaLibraryS3::requestArtwork(const QString &filename)
 {
+    if (!priv->m_trackIds.contains(filename))
+        return;
+    int albumid = priv->m_albumToTrack.value(priv->m_trackIds.value(filename));
+    priv->requestArtwork(priv->m_albumart.value(albumid));
 }
 
 void MediaLibraryS3::requestMetaData(const QString &filename)
