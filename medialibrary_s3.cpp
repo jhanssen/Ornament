@@ -63,6 +63,9 @@ static S3Status dataCallback(int bufferSize, const char* buffer, void* callbackD
 static S3Status listBucketCallback(int isTruncated, const char* nextmarker, int contentsCount, const S3ListBucketContent* contents,
                                    int commonPrefixesCount, const char** commonPrefixes, void* callbackData)
 {
+    Q_UNUSED(commonPrefixesCount)
+    Q_UNUSED(commonPrefixes)
+
     MediaLibraryS3Private* priv = reinterpret_cast<MediaLibraryS3Private*>(callbackData);
 
     for (int i = 0; i < contentsCount; ++i) {
@@ -83,6 +86,8 @@ static S3Status listBucketCallback(int isTruncated, const char* nextmarker, int 
 
 static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails, void* callbackData)
 {
+    Q_UNUSED(status)
+
     if (errorDetails) {
         if (errorDetails->message)
             qDebug() << errorDetails->message;
@@ -138,6 +143,8 @@ void MediaLibraryS3Private::requestArtwork(const QString &filename)
 {
     m_mode = Artwork;
 
+    // ### this should run in the IO thread though might not be able to since S3Reader might be blocking it
+    // ### Perhaps use the non-blocking thingys of libs3 instead
     S3GetObjectHandler objectHandler;
     objectHandler.responseHandler.completeCallback = completeCallback;
     objectHandler.responseHandler.propertiesCallback = propertiesCallback;
@@ -401,6 +408,7 @@ void MediaLibraryS3::requestArtwork(const QString &filename)
 
 void MediaLibraryS3::requestMetaData(const QString &filename)
 {
+    Q_UNUSED(filename)
 }
 
 void MediaLibraryS3::setSettings(QSettings *settings)

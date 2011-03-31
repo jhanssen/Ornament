@@ -14,13 +14,14 @@ public:
 
     void start();
 
-    Q_INVOKABLE void startJob();
-
     QString filename;
-    S3BucketContext* context;
 
     void emitAtEnd();
     void emitData(const char* data, int size);
+
+private:
+    Q_INVOKABLE void startJob();
+    S3BucketContext* context;
 
 signals:
     void data(QByteArray* data);
@@ -39,6 +40,8 @@ static S3Status dataCallback(int bufferSize, const char* buffer, void* callbackD
 
 static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails, void* callbackData)
 {
+    Q_UNUSED(status)
+
     if (errorDetails) {
         if (errorDetails->message)
             qDebug() << errorDetails->message;
@@ -56,6 +59,9 @@ static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails
 
 static S3Status propertiesCallback(const S3ResponseProperties* properties, void* callbackData)
 {
+    Q_UNUSED(properties)
+    Q_UNUSED(callbackData)
+
     return S3StatusOK;
 }
 
@@ -178,6 +184,9 @@ qint64 S3Reader::readData(char *data, qint64 maxlen)
 
 qint64 S3Reader::writeData(const char *data, qint64 len)
 {
+    Q_UNUSED(data)
+    Q_UNUSED(len)
+
     return 0;
 }
 
