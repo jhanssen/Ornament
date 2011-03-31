@@ -23,7 +23,7 @@ public:
     qint64 currentSize() const;
 
     void updateProgress(int read);
-    void updateProgressName();
+    void updateProgressName(const QString& artist, const QString& album, const QString& track);
 
 private slots:
     void startUpdate();

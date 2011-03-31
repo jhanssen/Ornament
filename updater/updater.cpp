@@ -118,16 +118,13 @@ void Updater::updateProgress(int read)
     QApplication::processEvents();
 }
 
-void Updater::updateProgressName()
+void Updater::updateProgressName(const QString &artist, const QString &album, const QString &track)
 {
     m_progress->fileProgress->setMaximum(m_current->size());
     m_progress->fileProgress->setValue(0);
 
-    QString fn = m_current->fileName();
-    int lastSlash = fn.lastIndexOf(QLatin1Char('/'));
-    if (lastSlash != -1)
-        fn = fn.mid(lastSlash + 1);
-    m_progress->fileNameLabel->setText(fn);
+    m_progress->fileNameLabel->setText(track);
+    m_progress->topLevelWidget()->setWindowTitle(artist + " / " + album);
 }
 
 void Updater::update(const QString &path)
@@ -178,7 +175,7 @@ void Updater::startUpdate()
             m_current = new QFile;
             m_current->setFileName(info.absoluteFilePath());
             if (m_current->open(QFile::ReadOnly)) {
-                updateProgressName();
+                updateProgressName(artist, album, track);
 
                 QByteArray key = QUrl::toPercentEncoding(artist) + "/" + QUrl::toPercentEncoding(album) + "/" + encodeFilename(trackno, track, duration, info.suffix());
                 S3PutObjectHandler objectHandler;
@@ -194,7 +191,11 @@ void Updater::startUpdate()
                 m_current = new QTemporaryFile("playerartwork");
                 if (static_cast<QTemporaryFile*>(m_current)->open()) {
                     m_writingArtwork = true;
-                    updateProgressName();
+                    QString fn = m_current->fileName();
+                    int lastSlash = fn.lastIndexOf(QLatin1Char('/'));
+                    if (lastSlash != -1)
+                        fn = fn.mid(lastSlash + 1);
+                    updateProgressName(artist, album, fn);
 
                     artwork.save(m_current, "PNG");
                     m_current->seek(0);
