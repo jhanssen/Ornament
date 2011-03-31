@@ -95,7 +95,7 @@ static S3Status propertiesCallback(const S3ResponseProperties* properties, void*
 }
 
 Updater::Updater(QObject *parent)
-    : QObject(parent), m_totalsize(0), m_current(0), m_writingArtwork(false), m_progress(new Progress)
+    : QObject(parent), m_totalsize(0), m_writingArtwork(false), m_current(0), m_progress(new Progress)
 {
     m_progress->show();
 }
