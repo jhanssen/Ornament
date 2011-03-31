@@ -5,7 +5,7 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . codecs/mad/taglib/taglib codecs/mad/taglib/taglib/toolkit codecs/mad/taglib/taglib/mpeg/id3v2
+INCLUDEPATH += . codecs/mad/taglib/taglib codecs/mad/taglib/taglib/toolkit codecs/mad/taglib/taglib/mpeg/id3v2 libs3/inc
 
 QT += multimedia declarative sql
 
@@ -21,6 +21,7 @@ HEADERS += codecs/codecs.h \
     io.h \
     filereader.h \
     buffer.h \
+    medialibrary_file.h \
     medialibrary.h
 
 SOURCES += main.cpp \
@@ -35,9 +36,10 @@ SOURCES += main.cpp \
     io.cpp \
     filereader.cpp \
     buffer.cpp \
+    medialibrary_file.cpp \
     medialibrary.cpp
 
-LIBS += codecs/mad/mad/libmad.a -ltag
+LIBS += codecs/mad/mad/libmad.a libs3/build/lib/libs3.a -ltag
 
 OTHER_FILES += \
     player.qml \

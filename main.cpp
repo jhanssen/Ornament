@@ -3,7 +3,7 @@
 #include "musicmodel.h"
 #include "io.h"
 #include "codecs/codecs.h"
-#include "medialibrary.h"
+#include "medialibrary_file.h"
 
 #include <QApplication>
 #include <QDeclarativeComponent>
@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 
     IO::init();
     Codecs::init();
-    MediaLibrary::init();
+    MediaLibraryFile::init();
 
     QSettings settings(QLatin1String("hepp"), QLatin1String("player"));
     MediaLibrary::instance()->setSettings(&settings);
