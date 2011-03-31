@@ -3,6 +3,7 @@
 #include "awsconfig.h"
 #include <libs3.h>
 #include <QTimer>
+#include <QStringList>
 #include <QDebug>
 
 class MediaLibraryS3Private : public QObject
@@ -13,7 +14,6 @@ public:
     ~MediaLibraryS3Private();
 
     void parseContent(const S3ListBucketContent& content);
-    void updateMetadata(const char* key, const char* value);
     void requestArtwork(const QString& filename);
 
     void emitComplete();
@@ -31,7 +31,6 @@ public:
     QHash<int, int> m_albumToTrack;
     QHash<int, QString> m_albumart;
 
-    QByteArray m_processing;
     QByteArray m_nextmarker;
     QByteArray m_artwork;
     bool m_clearmarker;
@@ -106,13 +105,8 @@ static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails
 
 static S3Status propertiesCallback(const S3ResponseProperties* properties, void* callbackData)
 {
-    MediaLibraryS3Private* priv = reinterpret_cast<MediaLibraryS3Private*>(callbackData);
-    //qDebug() << "propertycallback for" << priv->m_processing;
-    if (priv->m_processing.isEmpty())
-        return S3StatusOK;
-
-    for (int i = 0; i < properties->metaDataCount; ++i)
-        priv->updateMetadata(properties->metaData[i].name, properties->metaData[i].value);
+    Q_UNUSED(properties)
+    Q_UNUSED(callbackData)
 
     return S3StatusOK;
 }
@@ -168,6 +162,28 @@ void MediaLibraryS3Private::emitArtwork()
         return;
 
     emit artwork(image);
+}
+
+static bool parseTrack(Track* track, const QString& artist, const QString& album, const QString& trackname)
+{
+    int ext = trackname.lastIndexOf(QLatin1Char('.'));
+    if (ext == -1)
+        return false;
+
+    QStringList parts = trackname.left(ext).split(QLatin1Char('_'));
+    if (parts.size() != 3)
+        return false;
+
+    bool ok;
+    track->trackno = parts.at(0).toInt(&ok);
+    if (!ok)
+        return false;
+    track->duration = parts.at(2).toInt(&ok);
+    if (!ok)
+        return false;
+    track->name = parts.at(1);
+    track->filename = artist + "/" + album + "/" + trackname;
+    return true;
 }
 
 void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
@@ -227,7 +243,8 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
     QString track = QString::fromUtf8(trackData.constData(), trackData.size());
 
     QByteArray mime = MediaLibrary::instance()->mimeType(track);
-    if (mime.startsWith("image/") && !m_albumart.contains(albumid)) {
+    if (mime.startsWith("image/")
+        && (!m_albumart.contains(albumid)) || (track.toLower().startsWith("folder"))) {
         //qDebug() << "album art for" << (artist + "/" + album) << "is" << (artist + "/" + album + "/" + track);
         m_albumart[albumid] = artist + "/" + album + "/" + track;
         return;
@@ -236,91 +253,24 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
 
     int trackid;
     if (!m_trackIds.contains(artist + "/" + album + "/" + track)) {
-        trackid = m_idcount;
-        m_trackIds[artist + "/" + album + "/" + track] = trackid;
-
         Track t;
-        t.id = trackid;
-        t.filename = artist + "/" + album + "/" + track;
-        al->tracks[trackid] = t;
 
-        m_albumToTrack[trackid] = al->id;
+        if (parseTrack(&t, artist, album, track)) {
+            trackid = m_idcount;
+            t.id = trackid;
+            m_trackIds[artist + "/" + album + "/" + track] = trackid;
 
-        qDebug() << "adding track" << artist << album << track << trackid;
+            al->tracks[trackid] = t;
 
-        ++m_idcount;
-    }
-}
+            m_albumToTrack[trackid] = al->id;
 
-void MediaLibraryS3Private::updateMetadata(const char *key, const char *value)
-{
-    QList<QByteArray> items = m_processing.split('/');
-    if (items.size() < 3)
-        return;
-
-    const QByteArray& artistData = items.at(0);
-    QString artist = QString::fromUtf8(artistData.constData(), artistData.size());
-
-    if (!m_artistIds.contains(artist))
-        return;
-
-    //qDebug() << "found artist" << artist;
-
-    Artist& a = m_artists[m_artistIds.value(artist)];
-
-    const QByteArray& albumData = items.at(1);
-    QString album = QString::fromUtf8(albumData.constData(), albumData.size());
-
-    if (!m_albumIds.contains(artist + "/" + album))
-        return;
-
-    //qDebug() << "found album" << album;
-
-    Album& al = a.albums[m_albumIds.value(artist + "/" + album)];
-
-    const QByteArray& trackData = items.at(2);
-    QString track = QString::fromUtf8(trackData.constData(), trackData.size());
-
-    if (!m_trackIds.contains(artist + "/" + album + "/" + track))
-        return;
-
-    qDebug() << "found track" << track << key << value;
-
-    Track& t = al.tracks[m_trackIds.value(artist + "/" + album + "/" + track)];
-
-    if (qstrcmp(key, "track") == 0)
-        t.name = QString::fromUtf8(value);
-    else if (qstrcmp(key, "duration") == 0) {
-        QByteArray tmp(value);
-        t.duration = tmp.toInt();
-    } else if (qstrcmp(key, "trackno") == 0) {
-        QByteArray tmp(value);
-        t.trackno = tmp.toInt();
+            ++m_idcount;
+        }
     }
 }
 
 void MediaLibraryS3Private::processTracks()
 {
-    m_mode = MediaLibraryS3Private::Tracks;
-
-    S3ResponseHandler responseHandler;
-    responseHandler.completeCallback = completeCallback;
-    responseHandler.propertiesCallback = propertiesCallback;
-
-    QHash<QString, int>::const_iterator it = m_trackIds.begin();
-    QHash<QString, int>::const_iterator itend = m_trackIds.end();
-    while (it != itend) {
-        const QString& key = it.key();
-
-        m_processing = key.toUtf8();
-        S3_head_object(m_context, m_processing.constData(), 0, &responseHandler, this);
-        ++it;
-    }
-
-    m_processing.clear();
-
-    m_mode = MediaLibraryS3Private::None;
-
     foreach(const Artist& a, m_artists) {
         qDebug() << "emitting artist" << a.name;
         foreach(const Album& album, a.albums) {
@@ -332,6 +282,8 @@ void MediaLibraryS3Private::processTracks()
 
         emit q->artist(a);
     }
+
+    m_mode = MediaLibraryS3Private::None;
 
     m_artistIds.clear();
     m_albumIds.clear();
