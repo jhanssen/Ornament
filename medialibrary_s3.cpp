@@ -181,7 +181,9 @@ static bool parseTrack(Track* track, const QString& artist, const QString& album
     track->duration = parts.at(2).toInt(&ok);
     if (!ok)
         return false;
-    track->name = parts.at(1);
+    QString name = parts.at(1);
+    name.replace(QLatin1Char('~'), QLatin1Char('/'));
+    track->name = name;
     track->filename = artist + "/" + album + "/" + trackname;
     return true;
 }

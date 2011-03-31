@@ -11,6 +11,7 @@
 #include <QProgressBar>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QUrl>
 #include <QDebug>
 
 class Progress : public QWidget
@@ -137,7 +138,9 @@ void Updater::update(const QString &path)
 static inline QString encodeFilename(int trackno, const QString& track, int duration, const QString& ext)
 {
     QString t(track);
-    return QString("%1_%2_%3.%4").arg(trackno).arg(t.replace(QLatin1Char('_'), QLatin1Char('-'))).arg(duration).arg(ext);
+    t.replace(QLatin1Char('_'), QLatin1Char('-'));
+    t.replace(QLatin1Char('/'), QLatin1Char('~'));
+    return QString("%1_%2_%3.%4").arg(trackno).arg(t).arg(duration).arg(ext);
 }
 
 void Updater::startUpdate()
@@ -178,11 +181,11 @@ void Updater::startUpdate()
             if (m_current->open(QFile::ReadOnly)) {
                 updateProgressName();
 
+                QString key = artist + "/" + album + "/" + encodeFilename(trackno, track, duration, info.suffix());
                 S3PutObjectHandler objectHandler;
                 objectHandler.responseHandler.completeCallback = completeCallback;
                 objectHandler.responseHandler.propertiesCallback = propertiesCallback;
                 objectHandler.putObjectDataCallback = dataCallback;
-                QString key = artist + "/" + album + "/" + encodeFilename(trackno, track, duration, info.suffix());
                 S3_put_object(context, key.toUtf8().constData(), m_current->size(), 0, 0, &objectHandler, this);
             }
             delete m_current;
