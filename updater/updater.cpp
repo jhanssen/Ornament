@@ -189,7 +189,7 @@ void Updater::startUpdate()
             }
             delete m_current;
 
-            if (!artworkWritten.contains(artist + "/" + album)) {
+            if (!artworkWritten.contains(artist + "/" + album) && !artwork.isNull()) {
                 artworkWritten.insert(artist + "/" + album);
                 m_current = new QTemporaryFile("playerartwork");
                 if (static_cast<QTemporaryFile*>(m_current)->open()) {
