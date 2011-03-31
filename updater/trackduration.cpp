@@ -42,8 +42,7 @@ int TrackDuration::duration(const QFileInfo &fileinfo)
     qint64 r;
     qint64 l = 0;
     unsigned char* buf = new unsigned char[INPUT_BUFFER_SIZE];
-
-    // ### file reading here should possibly be done in the IO thread instead
+    bool tagFound = false;
 
     while (!file.atEnd()) {
         if (l < INPUT_BUFFER_SIZE) {
@@ -56,6 +55,9 @@ int TrackDuration::duration(const QFileInfo &fileinfo)
                 if (!MAD_RECOVERABLE(infostream.error))
                     break;
                 if (infostream.error == MAD_ERROR_LOSTSYNC) {
+                    if (tagFound)
+                        continue;
+
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(infostream.bufend - infostream.this_frame);
                     if (size >= header.size()) {
@@ -63,6 +65,7 @@ int TrackDuration::duration(const QFileInfo &fileinfo)
                         uint tagsize = header.tagSize();
                         if (tagsize > 0 && tagsize < TAG_MAX_SIZE) {
                             mad_stream_skip(&infostream, tagsize);
+                            tagFound = true;
                             continue;
                         }
                     }
