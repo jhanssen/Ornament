@@ -22,7 +22,8 @@ HEADERS += codecs/codecs.h \
     filereader.h \
     buffer.h \
     medialibrary_file.h \
-    medialibrary.h
+    medialibrary.h \
+    medialibrary_s3.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -37,7 +38,8 @@ SOURCES += main.cpp \
     filereader.cpp \
     buffer.cpp \
     medialibrary_file.cpp \
-    medialibrary.cpp
+    medialibrary.cpp \
+    medialibrary_s3.cpp
 
 LIBS += codecs/mad/mad/libmad.a libs3/build/lib/libs3.a -ltag
 
