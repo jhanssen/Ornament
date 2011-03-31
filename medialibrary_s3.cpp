@@ -201,11 +201,12 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
 
     const QByteArray& artistData = items.at(0);
     QString artist = QUrl::fromPercentEncoding(artistData);
+    QString artistlow = artist.toLower();
 
     int artistid;
-    if (!m_artistIds.contains(artist)) {
+    if (!m_artistIds.contains(artistlow)) {
         artistid = m_idcount;
-        m_artistIds[artist] = artistid;
+        m_artistIds[artistlow] = artistid;
 
         Artist a;
         a.id = artistid;
@@ -214,7 +215,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
 
         ++m_idcount;
     } else {
-        artistid = m_artistIds.value(artist);
+        artistid = m_artistIds.value(artistlow);
     }
     Artist* a = &m_artists[artistid];
 
@@ -223,11 +224,12 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
 
     const QByteArray& albumData = items.at(1);
     QString album = QUrl::fromPercentEncoding(albumData);
+    QString albumlow = album.toLower();
 
     int albumid;
-    if (!m_albumIds.contains(artist + "/" + album)) {
+    if (!m_albumIds.contains(artistlow + "/" + albumlow)) {
         albumid = m_idcount;
-        m_albumIds[artist + "/" + album] = albumid;
+        m_albumIds[artistlow + "/" + albumlow] = albumid;
 
         Album al;
         al.id = albumid;
@@ -236,7 +238,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
 
         ++m_idcount;
     } else {
-        albumid = m_albumIds.value(artist + "/" + album);
+        albumid = m_albumIds.value(artistlow + "/" + albumlow);
     }
     Album* al = &a->albums[albumid];
 
