@@ -23,7 +23,9 @@ HEADERS += codecs/codecs.h \
     buffer.h \
     medialibrary_file.h \
     medialibrary.h \
-    medialibrary_s3.h
+    medialibrary_s3.h \
+    s3reader.h \
+    awsconfig.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -39,9 +41,11 @@ SOURCES += main.cpp \
     buffer.cpp \
     medialibrary_file.cpp \
     medialibrary.cpp \
-    medialibrary_s3.cpp
+    medialibrary_s3.cpp \
+    s3reader.cpp \
+    awsconfig.cpp
 
-LIBS += codecs/mad/mad/libmad.a libs3/build/lib/libs3.a -ltag
+LIBS += codecs/mad/mad/libmad.a libs3/build/lib/libs3.a -ltag -lcurl -lxml2
 
 OTHER_FILES += \
     player.qml \
