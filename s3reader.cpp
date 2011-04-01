@@ -228,7 +228,8 @@ void S3ReaderJob::readMoreData()
         return;
 
     m_toread += S3_READ_SIZE;
-    readData();
+    if (m_reply)
+        readData();
 }
 
 void S3ReaderJob::replyData()
