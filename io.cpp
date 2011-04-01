@@ -1,50 +1,22 @@
 #include "io.h"
 #include <QDebug>
 
-class JobEvent : public QEvent
-{
-public:
-    enum Type { JobType = QEvent::User + 1 };
-
-    JobEvent(IOJob* job);
-
-    IOJob* m_job;
-};
-
-JobEvent::JobEvent(IOJob* job)
-    : QEvent(static_cast<QEvent::Type>(JobType)), m_job(job)
-{
-}
-
-class StopEvent : public QEvent
-{
-public:
-    enum Type { StopType = QEvent::User + 2 };
-
-    StopEvent();
-};
-
-StopEvent::StopEvent()
-    : QEvent(static_cast<QEvent::Type>(StopType))
-{
-}
-
-QMutex IOJob::m_deletedMutex;
-QSet<IOJob*> IOJob::m_deleted;
+QMutex IOJob::s_deletedMutex;
+QSet<IOJob*> IOJob::s_deleted;
 
 IOJob::IOJob(QObject *parent)
     : QObject(parent), m_origin(QThread::currentThread())
 {
-    QMutexLocker locker(&m_deletedMutex);
+    QMutexLocker locker(&s_deletedMutex);
 
-    m_deleted.remove(this);
+    s_deleted.remove(this);
 }
 
 IOJob::~IOJob()
 {
-    QMutexLocker locker(&m_deletedMutex);
+    QMutexLocker locker(&s_deletedMutex);
 
-    m_deleted.insert(this);
+    s_deleted.insert(this);
 }
 
 bool IOJob::ref()
@@ -57,34 +29,31 @@ bool IOJob::deref()
     return m_ref.deref();
 }
 
-void IOJob::deleteIfNeeded(IOJob *job)
+bool IOJob::deleteIfNeeded(IOJob *job)
 {
-    QMutexLocker locker(&m_deletedMutex);
+    QMutexLocker locker(&s_deletedMutex);
 
-    if (m_deleted.contains(job))
-        return;
+    if (s_deleted.contains(job))
+        return false;
 
     if (!job->m_ref) {
-        m_deleted.insert(job);
+        s_deleted.insert(job);
 
         QMetaObject::invokeMethod(job, "deleteLater");
+        return true;
     }
+
+    return false;
 }
 
 void IOJob::stop()
 {
-    StopEvent* event = new StopEvent;
-    QCoreApplication::postEvent(this, event);
+    QMetaObject::invokeMethod(this, "stopJob");
 }
 
-bool IOJob::event(QEvent *event)
+void IOJob::stopJob()
 {
-    if (event->type() == static_cast<QEvent::Type>(StopEvent::StopType)) {
-        emit finished();
-        return true;
-    }
-
-    return QObject::event(event);
+    emit finished();
 }
 
 void IOJob::moveToOrigin()
@@ -200,28 +169,35 @@ void IO::init()
     if (!s_inst) {
         s_inst = new IO;
         s_inst->start();
+
+        qRegisterMetaType<IOJob*>("IOJob*");
     }
 }
 
-bool IO::event(QEvent *event)
+void IO::startJobIO(IOJob *job)
 {
-    if (event->type() == static_cast<QEvent::Type>(JobEvent::JobType)) {
-        JobEvent* jobevent = static_cast<JobEvent*>(event);
-        IOJob* job = jobevent->m_job;
+    m_jobs.insert(job);
+    connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()), Qt::DirectConnection);
 
-        m_jobs.insert(job);
-        connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()), Qt::DirectConnection);
+    qDebug() << "=== new job ready!" << job;
 
-        qDebug() << "=== new job ready!" << job;
+    emit jobReady(job);
+}
 
-        emit jobReady(job);
+void IO::stopIO()
+{
+    exit();
+}
 
-        return true;
-    } else if (event->type() == static_cast<QEvent::Type>(StopEvent::StopType)) {
-        exit();
-        return true;
+void IO::cleanupIO()
+{
+    QSet<IOJob*>::iterator it = m_jobs.begin();
+    while (it != m_jobs.end()) {
+        if (IOJob::deleteIfNeeded(*it))
+            it = m_jobs.erase(it);
+        else
+            ++it;
     }
-    return QThread::event(event);
 }
 
 void IO::run()
@@ -254,14 +230,17 @@ void IO::localJobFinished()
 
 void IO::startJob(IOJob *job)
 {
-    job->moveToThread(this);
-    QCoreApplication::postEvent(this, new JobEvent(job));
+    QMetaObject::invokeMethod(this, "startJobIO", Q_ARG(IOJob*, job));
 }
 
 void IO::stop()
 {
-    StopEvent* event = new StopEvent;
-    QCoreApplication::postEvent(this, event);
+    QMetaObject::invokeMethod(this, "stopIO");
+}
+
+void IO::cleanup()
+{
+    QMetaObject::invokeMethod(this, "cleanupIO");
 }
 
 IOJobFinisher::IOJobFinisher(QObject *parent)
