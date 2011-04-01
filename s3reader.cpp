@@ -118,7 +118,7 @@ void S3ReaderJob::replyFinished()
 {
     m_replyFinished = true;
 
-    if (m_reply->bytesAvailable() == 0) {
+    if (m_reply->bytesAvailable() == 0 || m_reply->error() != QNetworkReply::NoError) {
         qDebug() << "s3 reader finished";
 
         m_replyFinished = false;
