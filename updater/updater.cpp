@@ -135,7 +135,9 @@ void Updater::update(const QString &path)
 
 static inline QByteArray encodeFilename(int trackno, const QString& track, int duration, const QString& ext)
 {
-    QByteArray t = QUrl::toPercentEncoding(track);
+    QString tracknoslash = track;
+    tracknoslash.replace(QLatin1Char('/'), QLatin1Char('~'));
+    QByteArray t = QUrl::toPercentEncoding(tracknoslash);
     return QByteArray::number(trackno) + '_' + t + '_' + QByteArray::number(duration) + '.' + ext.toLatin1();
 }
 
