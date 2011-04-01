@@ -36,6 +36,7 @@ private slots:
 
     void readerData(QByteArray* data);
     void readerAtEnd();
+    void readerStarving();
 
 private:
     QString m_filename;

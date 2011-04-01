@@ -32,6 +32,7 @@ public:
 signals:
     void data(QByteArray* data);
     void atEnd();
+    void starving();
 
 private slots:
     void replyFinished();
@@ -230,8 +231,10 @@ void S3ReaderJob::readMoreData()
 
 void S3ReaderJob::replyData()
 {
-    if (m_toread == 0)
+    if (m_toread == 0) {
+        emit starving();
         return;
+    }
 
     readData();
 }
@@ -364,6 +367,7 @@ void S3Reader::jobCreated(IOJob *job)
 
         connect(*m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
+        connect(*m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
 
         m_reader.as<S3ReaderJob>()->start();
     }
@@ -378,6 +382,15 @@ void S3Reader::jobFinished(IOJob *job)
     }
 
     IOJob::deleteIfNeeded(job);
+}
+
+void S3Reader::readerStarving()
+{
+    if (m_buffer.size() < S3_MIN_BUFFER_SIZE && m_reader) {
+        qDebug() << "s3 job starvation, requesting more";
+        m_reader.as<S3ReaderJob>()->readMore();
+        m_requestedData = true;
+    }
 }
 
 void S3Reader::readerData(QByteArray *data)
