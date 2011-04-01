@@ -270,8 +270,11 @@ void S3Reader::pause()
 
 void S3Reader::resume()
 {
-    if (m_reader)
+    if (m_reader) {
         m_reader.as<S3ReaderJob>()->resume();
+        m_reader.as<S3ReaderJob>()->readMore();
+        m_requestedData = true;
+    }
 }
 
 void S3Reader::setFilename(const QString &filename)
