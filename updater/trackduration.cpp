@@ -7,7 +7,6 @@
 #include <QDebug>
 
 #define INPUT_BUFFER_SIZE 8192
-#define TAG_MAX_SIZE (1024 * 10000)
 
 static int timerToMs(mad_timer_t* timer)
 {
@@ -42,7 +41,6 @@ int TrackDuration::duration(const QFileInfo &fileinfo)
     qint64 r;
     qint64 l = 0;
     unsigned char* buf = new unsigned char[INPUT_BUFFER_SIZE];
-    bool tagFound = false;
 
     while (!file.atEnd()) {
         if (l < INPUT_BUFFER_SIZE) {
@@ -55,17 +53,13 @@ int TrackDuration::duration(const QFileInfo &fileinfo)
                 if (!MAD_RECOVERABLE(infostream.error))
                     break;
                 if (infostream.error == MAD_ERROR_LOSTSYNC) {
-                    if (tagFound)
-                        continue;
-
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(infostream.bufend - infostream.this_frame);
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0 && tagsize < TAG_MAX_SIZE) {
-                            mad_stream_skip(&infostream, tagsize);
-                            tagFound = true;
+                        if (tagsize > 0) {
+                            mad_stream_skip(&infostream, qMin(tagsize, size));
                             continue;
                         }
                     }

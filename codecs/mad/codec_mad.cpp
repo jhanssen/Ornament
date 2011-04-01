@@ -43,7 +43,6 @@
 
 #define INPUT_BUFFER_SIZE (8196 * 5)
 #define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
-#define TAG_MAX_SIZE (1024 * 10000)
 
 static signed short MadFixedToSshort(mad_fixed_t Fixed)
 {
@@ -124,8 +123,8 @@ int AudioFileInformationMad::length() const
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0 && tagsize < TAG_MAX_SIZE) {
-                            mad_stream_skip(&infostream, tagsize);
+                        if (tagsize > 0) {
+                            mad_stream_skip(&infostream, qMin(tagsize, size));
                             continue;
                         }
                     }
@@ -149,7 +148,7 @@ int AudioFileInformationMad::length() const
 }
 
 CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_buffer(0), m_tagEncountered(false)
+    : Codec(parent), m_buffer(0)
 {
 }
 
@@ -194,8 +193,6 @@ void CodecMad::deinit()
     mad_frame_finish(&m_frame);
     mad_synth_finish(&m_synth);
     mad_timer_reset(&m_timer);
-
-    m_tagEncountered = false;
 }
 
 void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* outsize)
@@ -295,18 +292,13 @@ CodecMad::Status CodecMad::decode()
         if (mad_header_decode(&m_frame.header, &m_stream)) {
             if (MAD_RECOVERABLE(m_stream.error)) {
                 if (m_stream.error == MAD_ERROR_LOSTSYNC) {
-                    if (m_tagEncountered)
-                        continue;
-
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(m_stream.bufend - m_stream.this_frame);
                     if (size >= header.size()) {
                         header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
                         uint tagsize = header.tagSize();
-                        if (tagsize > 0 && tagsize <= TAG_MAX_SIZE) {
-                            mad_stream_skip(&m_stream, tagsize);
-                            m_tagEncountered = true;
-                        }
+                        if (tagsize > 0)
+                            mad_stream_skip(&m_stream, qMin(tagsize, size));
                     }
 
                     continue;

@@ -50,8 +50,6 @@ private:
     QByteArray m_data;
     unsigned char* m_buffer;
 
-    bool m_tagEncountered;
-
     void (CodecMad::*decodeFunc)(QByteArray** out, char** outptr, char** outend, int* outsize);
 };
 
