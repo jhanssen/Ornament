@@ -3,10 +3,11 @@
 
 #include "io.h"
 #include "buffer.h"
+#include "audioreader.h"
 #include <QFile>
 #include <QVector>
 
-class FileReader : public QIODevice
+class FileReader : public AudioReader
 {
     Q_OBJECT
 public:

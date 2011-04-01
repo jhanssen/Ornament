@@ -374,7 +374,7 @@ void MediaLibraryS3::setSettings(QSettings *settings)
     MediaLibrary::setSettings(settings);
 }
 
-QIODevice* MediaLibraryS3::deviceForFilename(const QString &filename)
+AudioReader* MediaLibraryS3::readerForFilename(const QString &filename)
 {
     S3Reader* s3reader = new S3Reader;
     s3reader->setFilename(filename);

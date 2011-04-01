@@ -25,7 +25,8 @@ HEADERS += codecs/codecs.h \
     medialibrary.h \
     medialibrary_s3.h \
     s3reader.h \
-    awsconfig.h
+    awsconfig.h \
+    audioreader.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -43,7 +44,8 @@ SOURCES += main.cpp \
     medialibrary.cpp \
     medialibrary_s3.cpp \
     s3reader.cpp \
-    awsconfig.cpp
+    awsconfig.cpp \
+    audioreader.cpp
 
 LIBS += codecs/mad/mad/libmad.a libs3/build/lib/libs3.a -ltag -lcurl -lxml2
 

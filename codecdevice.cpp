@@ -1,4 +1,5 @@
 #include "codecdevice.h"
+#include "audioreader.h"
 #include "codecs/codec.h"
 #include <QApplication>
 #include <QDebug>
@@ -7,8 +8,8 @@
 #define CODEC_BUFFER_MAX (16384 * 50)
 #define CODEC_INPUT_READ 8192
 
-CodecDevice::CodecDevice(QObject *parent) :
-    QIODevice(parent), m_input(0), m_codec(0)
+CodecDevice::CodecDevice(QObject *parent)
+    : QIODevice(parent), m_input(0), m_codec(0)
 {
 }
 
@@ -23,7 +24,7 @@ bool CodecDevice::isSequential() const
     return true;
 }
 
-void CodecDevice::setInputDevice(QIODevice *input)
+void CodecDevice::setInputReader(AudioReader *input)
 {
     m_input = input;
 }
@@ -115,4 +116,14 @@ qint64 CodecDevice::writeData(const char *data, qint64 len)
 void CodecDevice::codecOutput(QByteArray* output)
 {
     m_decoded.add(output);
+}
+
+void CodecDevice::pauseReader()
+{
+    m_input->pause();
+}
+
+void CodecDevice::resumeReader()
+{
+    m_input->resume();
 }

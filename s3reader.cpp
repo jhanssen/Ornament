@@ -26,6 +26,9 @@ public:
     void readMore();
     void start();
 
+    void pause();
+    void resume();
+
 signals:
     void data(QByteArray* data);
     void atEnd();
@@ -37,11 +40,15 @@ private slots:
     void replySslErrors(const QList<QSslError>& errors);
 
 private:
+    enum State { Reading, Paused } m_state;
+
     Q_INVOKABLE void startJob();
     Q_INVOKABLE void readMoreData();
+    Q_INVOKABLE void setState(int state); // ### Should really use State here
 
 private:
     void readData();
+    void startStreaming();
 
 private:
     S3BucketContext* m_context;
@@ -50,12 +57,13 @@ private:
     QString m_filename;
     bool m_replyFinished;
     int m_toread;
+    qint64 m_position;
 };
 
 #include "s3reader.moc"
 
 S3ReaderJob::S3ReaderJob(QObject *parent)
-    : IOJob(parent), m_manager(0), m_reply(0), m_replyFinished(false), m_toread(0)
+    : IOJob(parent), m_state(Reading), m_manager(0), m_reply(0), m_replyFinished(false), m_toread(0), m_position(0)
 {
     m_context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
     m_context->accessKeyId = AwsConfig::accessKey();
@@ -78,6 +86,37 @@ void S3ReaderJob::setFilename(const QString &fn)
 void S3ReaderJob::start()
 {
     QMetaObject::invokeMethod(this, "startJob");
+}
+
+void S3ReaderJob::pause()
+{
+    QMetaObject::invokeMethod(this, "setState", Q_ARG(int, Paused));
+}
+
+void S3ReaderJob::resume()
+{
+    QMetaObject::invokeMethod(this, "setState", Q_ARG(int, Reading));
+}
+
+void S3ReaderJob::setState(int state)
+{
+    State oldstate = m_state;
+    m_state = static_cast<State>(state);
+
+    if (m_state == oldstate)
+        return;
+
+    qDebug() << "s3 state changed to" << m_state;
+
+    switch(m_state) {
+    case Paused:
+        m_reply->abort();
+        break;
+    case Reading:
+        m_toread = 0;
+        startJob();
+        break;
+    }
 }
 
 void S3ReaderJob::readMore()
@@ -106,6 +145,11 @@ void S3ReaderJob::startJob()
     url.setEncodedUrl(query, QUrl::TolerantMode);
 
     QNetworkRequest req(url);
+    if (m_position > 0) {
+        qDebug() << "s3 resuming at" << m_position;
+        req.setRawHeader("Range", "bytes=" + QByteArray::number(m_position) + "-");
+    }
+
     m_reply = m_manager->get(req);
     m_reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
     connect(m_reply, SIGNAL(finished()), this, SLOT(replyFinished()));
@@ -116,6 +160,16 @@ void S3ReaderJob::startJob()
 
 void S3ReaderJob::replyFinished()
 {
+    if (m_state == Paused) {
+        QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+        if (reply)
+            reply->deleteLater();
+
+        qDebug() << "s3 reply was finished when pausing";
+
+        return;
+    }
+
     m_replyFinished = true;
 
     if (m_reply->bytesAvailable() == 0 || m_reply->error() != QNetworkReply::NoError) {
@@ -147,10 +201,12 @@ void S3ReaderJob::readData()
         return;
     }
 
-    qDebug() << "s3 read" << d->size() << "bytes";
+    //qDebug() << "s3 read" << d->size() << "bytes";
 
     m_toread -= d->size();
     emit data(d);
+
+    m_position += d->size();
 
     if (m_replyFinished && m_reply->bytesAvailable() == 0) {
         qDebug() << "s3 reader finished";
@@ -165,6 +221,9 @@ void S3ReaderJob::readData()
 
 void S3ReaderJob::readMoreData()
 {
+    if (m_state == Paused)
+        return;
+
     m_toread += S3_READ_SIZE;
     readData();
 }
@@ -179,6 +238,8 @@ void S3ReaderJob::replyData()
 
 void S3ReaderJob::replyError(QNetworkReply::NetworkError errorType)
 {
+    if (errorType == QNetworkReply::OperationCanceledError) // This is expected when pausing
+        return;
     qDebug() << "reply error" << errorType;
 }
 
@@ -190,7 +251,7 @@ void S3ReaderJob::replySslErrors(const QList<QSslError>& errors)
 }
 
 S3Reader::S3Reader(QObject *parent)
-    : QIODevice(parent), m_jobid(0), m_requestedData(false)
+    : AudioReader(parent), m_jobid(0), m_requestedData(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
@@ -199,6 +260,18 @@ S3Reader::S3Reader(QObject *parent)
 
 S3Reader::~S3Reader()
 {
+}
+
+void S3Reader::pause()
+{
+    if (m_reader)
+        m_reader.as<S3ReaderJob>()->pause();
+}
+
+void S3Reader::resume()
+{
+    if (m_reader)
+        m_reader.as<S3ReaderJob>()->resume();
 }
 
 void S3Reader::setFilename(const QString &filename)
@@ -226,7 +299,7 @@ void S3Reader::close()
     if (!isOpen())
         return;
 
-    QIODevice::close();
+    AudioReader::close();
 
     m_buffer.clear();
     if (m_reader) {
@@ -247,7 +320,7 @@ bool S3Reader::open(OpenMode mode)
     job->setFilename(m_filename);
     m_jobid = IO::instance()->startJob(job);
 
-    return QIODevice::open(mode);
+    return AudioReader::open(mode);
 }
 
 qint64 S3Reader::readData(char *data, qint64 maxlen)

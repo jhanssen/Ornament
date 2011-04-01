@@ -1,11 +1,11 @@
 #ifndef S3READER_H
 #define S3READER_H
 
-#include <QIODevice>
+#include "audioreader.h"
 #include "buffer.h"
 #include "io.h"
 
-class S3Reader : public QIODevice
+class S3Reader : public AudioReader
 {
     Q_OBJECT
 public:
@@ -21,6 +21,9 @@ public:
 
     void close();
     bool open(OpenMode mode);
+
+    void pause();
+    void resume();
 
 protected:
     qint64 readData(char *data, qint64 maxlen);

@@ -7,6 +7,7 @@
 #include <QImage>
 #include "tag.h"
 
+class AudioReader;
 class QSettings;
 
 struct Album;
@@ -48,7 +49,7 @@ public:
     virtual void requestArtwork(const QString& filename) = 0;
     virtual void requestMetaData(const QString& filename) = 0;
 
-    virtual QIODevice* deviceForFilename(const QString& filename) = 0;
+    virtual AudioReader* readerForFilename(const QString& filename) = 0;
     virtual QByteArray mimeType(const QString& filename) const = 0;
 
     virtual void setSettings(QSettings* settings);

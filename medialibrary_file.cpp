@@ -750,7 +750,7 @@ QByteArray MediaLibraryFile::mimeType(const QString &filename) const
     return QByteArray();
 }
 
-QIODevice* MediaLibraryFile::deviceForFilename(const QString &filename)
+AudioReader* MediaLibraryFile::readerForFilename(const QString &filename)
 {
     FileReader* reader = new FileReader;
     reader->setFilename(filename);

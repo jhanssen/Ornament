@@ -141,7 +141,7 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
-        QIODevice* reader = MediaLibrary::instance()->deviceForFilename(m_filename);
+        AudioReader* reader = MediaLibrary::instance()->readerForFilename(m_filename);
         if (!reader->open(FileReader::ReadOnly)) {
             delete codec;
             delete reader;
@@ -157,7 +157,7 @@ void AudioPlayer::play()
 
         m_codec = new CodecDevice(this);
         m_codec->setCodec(codec);
-        m_codec->setInputDevice(reader);
+        m_codec->setInputReader(reader);
 
         if (!m_codec->open(CodecDevice::ReadOnly)) {
             delete m_codec;
@@ -171,6 +171,7 @@ void AudioPlayer::play()
 
         m_audio->output()->start(m_codec);
     } else if (m_state == Paused) {
+        m_codec->resumeReader();
         m_audio->output()->resume();
     }
 }
@@ -188,6 +189,7 @@ void AudioPlayer::pause()
         return;
 
     m_audio->output()->suspend();
+    m_codec->pauseReader();
 }
 
 void AudioPlayer::stop()
@@ -196,6 +198,7 @@ void AudioPlayer::stop()
         return;
 
     m_audio->output()->stop();
+    m_codec->pauseReader();
 }
 
 AudioPlayer* AudioImageProvider::s_currentPlayer = 0;

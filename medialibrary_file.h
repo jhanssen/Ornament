@@ -37,7 +37,7 @@ public:
     void requestArtwork(const QString& filename);
     void requestMetaData(const QString& filename);
 
-    QIODevice* deviceForFilename(const QString &filename);
+    AudioReader* readerForFilename(const QString &filename);
 
     void setSettings(QSettings *settings);
 

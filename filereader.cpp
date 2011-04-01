@@ -89,7 +89,7 @@ void FileJob::setFilename(const QString &filename)
 }
 
 FileReader::FileReader(QObject *parent)
-    : QIODevice(parent), m_jobid(0), m_atend(false), m_pendingTotal(0)
+    : AudioReader(parent), m_jobid(0), m_atend(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
@@ -97,7 +97,7 @@ FileReader::FileReader(QObject *parent)
 }
 
 FileReader::FileReader(const QString &filename, QObject *parent)
-    : QIODevice(parent), m_filename(filename), m_jobid(0), m_atend(false), m_pendingTotal(0)
+    : AudioReader(parent), m_filename(filename), m_jobid(0), m_atend(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
@@ -135,7 +135,7 @@ void FileReader::close()
     if (!isOpen())
         return;
 
-    QIODevice::close();
+    AudioReader::close();
     m_atend = false;
 
     m_buffer.clear();
@@ -152,7 +152,7 @@ bool FileReader::open(OpenMode mode)
 {
     if (m_filename.isEmpty())
         return false;
-    bool ok = QIODevice::open(mode);
+    bool ok = AudioReader::open(mode);
     if (!ok)
         return false;
 
