@@ -11,6 +11,9 @@
 #include <QTimer>
 #include <QDebug>
 
+#define S3_MIN_BUFFER_SIZE (8192 * 10)
+#define S3_READ_SIZE (8192 * 50)
+
 class S3ReaderJob : public IOJob
 {
     Q_OBJECT
@@ -18,9 +21,14 @@ public:
     S3ReaderJob(QObject* parent = 0);
     ~S3ReaderJob();
 
+    void setFilename(const QString& filename);
+
+    void readMore();
     void start();
 
-    QString filename;
+signals:
+    void data(QByteArray* data);
+    void atEnd();
 
 private slots:
     void replyFinished();
@@ -30,19 +38,24 @@ private slots:
 
 private:
     Q_INVOKABLE void startJob();
+    Q_INVOKABLE void readMoreData();
+
+private:
+    void readData();
+
+private:
     S3BucketContext* context;
     QNetworkAccessManager* manager;
     QNetworkReply* reply;
-
-signals:
-    void data(QByteArray* data);
-    void atEnd();
+    QString filename;
+    bool fin;
+    int toread;
 };
 
 #include "s3reader.moc"
 
 S3ReaderJob::S3ReaderJob(QObject *parent)
-    : IOJob(parent), manager(0), reply(0)
+    : IOJob(parent), manager(0), reply(0), fin(false), toread(0)
 {
     context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
     context->accessKeyId = AwsConfig::accessKey();
@@ -57,9 +70,19 @@ S3ReaderJob::~S3ReaderJob()
     free(context);
 }
 
+void S3ReaderJob::setFilename(const QString &fn)
+{
+    filename = fn;
+}
+
 void S3ReaderJob::start()
 {
     QMetaObject::invokeMethod(this, "startJob");
+}
+
+void S3ReaderJob::readMore()
+{
+    QMetaObject::invokeMethod(this, "readMoreData");
 }
 
 void S3ReaderJob::startJob()
@@ -84,6 +107,7 @@ void S3ReaderJob::startJob()
 
     QNetworkRequest req(url);
     reply = manager->get(req);
+    reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
     connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
     connect(reply, SIGNAL(readyRead()), this, SLOT(replyData()));
     connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(replyError(QNetworkReply::NetworkError)));
@@ -92,15 +116,65 @@ void S3ReaderJob::startJob()
 
 void S3ReaderJob::replyFinished()
 {
-    emit atEnd();
-    reply->deleteLater();
-    manager->deleteLater();
+    fin = true;
+
+    if (reply->bytesAvailable() == 0) {
+        qDebug() << "s3 reader finished";
+
+        fin = false;
+
+        emit atEnd();
+        reply->deleteLater();
+        manager->deleteLater();
+    }
+}
+
+void S3ReaderJob::readData()
+{
+    QByteArray* d = new QByteArray(reply->read(toread));
+    if (d->isEmpty()) {
+        if (fin && reply->bytesAvailable() == 0) {
+            qDebug() << "s3 reader finished";
+
+            fin = false;
+
+            emit atEnd();
+            reply->deleteLater();
+            manager->deleteLater();
+        }
+
+        delete d;
+        return;
+    }
+
+    qDebug() << "s3 read" << d->size() << "bytes";
+
+    toread -= d->size();
+    emit data(d);
+
+    if (fin && reply->bytesAvailable() == 0) {
+        qDebug() << "s3 reader finished";
+
+        fin = false;
+
+        emit atEnd();
+        reply->deleteLater();
+        manager->deleteLater();
+    }
+}
+
+void S3ReaderJob::readMoreData()
+{
+    toread += S3_READ_SIZE;
+    readData();
 }
 
 void S3ReaderJob::replyData()
 {
-    QByteArray* d = new QByteArray(reply->readAll());
-    emit data(d);
+    if (toread == 0)
+        return;
+
+    readData();
 }
 
 void S3ReaderJob::replyError(QNetworkReply::NetworkError errorType)
@@ -116,7 +190,7 @@ void S3ReaderJob::replySslErrors(const QList<QSslError>& errors)
 }
 
 S3Reader::S3Reader(QObject *parent)
-    : QIODevice(parent), m_jobid(0)
+    : QIODevice(parent), m_jobid(0), m_requestedData(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
     connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
@@ -170,7 +244,7 @@ bool S3Reader::open(OpenMode mode)
     m_atend = false;
 
     S3ReaderJob* job = new S3ReaderJob;
-    job->filename = m_filename;
+    job->setFilename(m_filename);
     m_jobid = IO::instance()->startJob(job);
 
     return QIODevice::open(mode);
@@ -187,6 +261,12 @@ qint64 S3Reader::readData(char *data, qint64 maxlen)
 
     if (!dt.isEmpty())
         memcpy(data, dt.constData(), dt.size());
+
+    if (!m_requestedData && m_buffer.size() < S3_MIN_BUFFER_SIZE && m_reader) {
+        qDebug() << "s3 buffer low, requesting more";
+        m_reader.as<S3ReaderJob>()->readMore();
+        m_requestedData = true;
+    }
 
     return dt.size();
 }
@@ -233,6 +313,9 @@ void S3Reader::readerData(QByteArray *data)
     }
 
     m_buffer.add(data);
+
+    if (m_requestedData && (m_buffer.size() * 2) > S3_MIN_BUFFER_SIZE)
+        m_requestedData = false;
 }
 
 void S3Reader::readerAtEnd()

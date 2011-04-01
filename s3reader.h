@@ -42,6 +42,8 @@ private:
     IOPtr m_reader;
 
     bool m_atend;
+
+    bool m_requestedData;
 };
 
 #endif // S3READER_H

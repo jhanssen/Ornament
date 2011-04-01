@@ -20,7 +20,6 @@ CodecDevice::~CodecDevice()
 
 bool CodecDevice::isSequential() const
 {
-    qDebug() << "seq!";
     return true;
 }
 
@@ -49,9 +48,9 @@ bool CodecDevice::fillBuffer()
             if (input.isEmpty())
                 break;
 
-            qDebug() << "feeding" << input.size();
+            //qDebug() << "feeding" << input.size();
             m_codec->feed(input, m_input->atEnd());
-            qDebug() << "feed complete, decoding";
+            //qDebug() << "feed complete, decoding";
         } else if (status == Codec::Error) {
             qDebug() << "codec error";
             break;
@@ -59,7 +58,7 @@ bool CodecDevice::fillBuffer()
 
         do {
             status = m_codec->decode();
-            qDebug() << "decode status" << status;
+            //qDebug() << "decode status" << status;
         } while (status == Codec::Ok);
     } while (m_decoded.size() < CODEC_BUFFER_MAX);
 
@@ -84,7 +83,7 @@ qint64 CodecDevice::bytesAvailable() const
 
 qint64 CodecDevice::readData(char *data, qint64 maxlen)
 {
-    qDebug() << "we go?" << m_decoded.size();
+    //qDebug() << "we go?" << m_decoded.size();
     if (m_decoded.size() < CODEC_BUFFER_MIN) {
         if (!fillBuffer() && m_decoded.isEmpty()) {
             qDebug() << "no go :(";
@@ -94,7 +93,7 @@ qint64 CodecDevice::readData(char *data, qint64 maxlen)
     }
 
     qint64 toread = qMin(maxlen, static_cast<qint64>(m_decoded.size()));
-    qDebug() << "toread" << toread << m_decoded.size();
+    //qDebug() << "toread" << toread << m_decoded.size();
     if (toread == 0)
         return 0;
 
