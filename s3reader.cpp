@@ -21,7 +21,7 @@ public:
     S3ReaderJob(QObject* parent = 0);
     ~S3ReaderJob();
 
-    void setFilename(const QString& filename);
+    void setFilename(const QString& m_filename);
 
     void readMore();
     void start();
@@ -44,35 +44,35 @@ private:
     void readData();
 
 private:
-    S3BucketContext* context;
-    QNetworkAccessManager* manager;
-    QNetworkReply* reply;
-    QString filename;
-    bool fin;
-    int toread;
+    S3BucketContext* m_context;
+    QNetworkAccessManager* m_manager;
+    QNetworkReply* m_reply;
+    QString m_filename;
+    bool m_replyFinished;
+    int m_toread;
 };
 
 #include "s3reader.moc"
 
 S3ReaderJob::S3ReaderJob(QObject *parent)
-    : IOJob(parent), manager(0), reply(0), fin(false), toread(0)
+    : IOJob(parent), m_manager(0), m_reply(0), m_replyFinished(false), m_toread(0)
 {
-    context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
-    context->accessKeyId = AwsConfig::accessKey();
-    context->secretAccessKey = AwsConfig::secretKey();
-    context->bucketName = AwsConfig::bucket();
-    context->protocol = S3ProtocolHTTPS;
-    context->uriStyle = S3UriStyleVirtualHost;
+    m_context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
+    m_context->accessKeyId = AwsConfig::accessKey();
+    m_context->secretAccessKey = AwsConfig::secretKey();
+    m_context->bucketName = AwsConfig::bucket();
+    m_context->protocol = S3ProtocolHTTPS;
+    m_context->uriStyle = S3UriStyleVirtualHost;
 }
 
 S3ReaderJob::~S3ReaderJob()
 {
-    free(context);
+    free(m_context);
 }
 
 void S3ReaderJob::setFilename(const QString &fn)
 {
-    filename = fn;
+    m_filename = fn;
 }
 
 void S3ReaderJob::start()
@@ -87,15 +87,15 @@ void S3ReaderJob::readMore()
 
 void S3ReaderJob::startJob()
 {
-    if (!manager) {
-        manager = new QNetworkAccessManager(this);
-        connect(manager, SIGNAL(destroyed()), this, SIGNAL(finished()));
+    if (!m_manager) {
+        m_manager = new QNetworkAccessManager(this);
+        connect(m_manager, SIGNAL(destroyed()), this, SIGNAL(finished()));
     }
 
     char query[S3_MAX_AUTHENTICATED_QUERY_STRING_SIZE];
 
-    QByteArray key = QUrl::toPercentEncoding(filename, "/_");
-    S3Status status = S3_generate_authenticated_query_string(query, context, key.constData(), -1, 0);
+    QByteArray key = QUrl::toPercentEncoding(m_filename, "/_");
+    S3Status status = S3_generate_authenticated_query_string(query, m_context, key.constData(), -1, 0);
     if (status != S3StatusOK) {
         qDebug() << "error when generating query string for" << key << "," << status;
         emit finished();
@@ -106,41 +106,41 @@ void S3ReaderJob::startJob()
     url.setEncodedUrl(query, QUrl::TolerantMode);
 
     QNetworkRequest req(url);
-    reply = manager->get(req);
-    reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
-    connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
-    connect(reply, SIGNAL(readyRead()), this, SLOT(replyData()));
-    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(replyError(QNetworkReply::NetworkError)));
-    connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(replySslErrors(QList<QSslError>)));
+    m_reply = m_manager->get(req);
+    m_reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
+    connect(m_reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    connect(m_reply, SIGNAL(readyRead()), this, SLOT(replyData()));
+    connect(m_reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(replyError(QNetworkReply::NetworkError)));
+    connect(m_reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(replySslErrors(QList<QSslError>)));
 }
 
 void S3ReaderJob::replyFinished()
 {
-    fin = true;
+    m_replyFinished = true;
 
-    if (reply->bytesAvailable() == 0) {
+    if (m_reply->bytesAvailable() == 0) {
         qDebug() << "s3 reader finished";
 
-        fin = false;
+        m_replyFinished = false;
 
         emit atEnd();
-        reply->deleteLater();
-        manager->deleteLater();
+        m_reply->deleteLater();
+        m_manager->deleteLater();
     }
 }
 
 void S3ReaderJob::readData()
 {
-    QByteArray* d = new QByteArray(reply->read(toread));
+    QByteArray* d = new QByteArray(m_reply->read(m_toread));
     if (d->isEmpty()) {
-        if (fin && reply->bytesAvailable() == 0) {
+        if (m_replyFinished && m_reply->bytesAvailable() == 0) {
             qDebug() << "s3 reader finished";
 
-            fin = false;
+            m_replyFinished = false;
 
             emit atEnd();
-            reply->deleteLater();
-            manager->deleteLater();
+            m_reply->deleteLater();
+            m_manager->deleteLater();
         }
 
         delete d;
@@ -149,29 +149,29 @@ void S3ReaderJob::readData()
 
     qDebug() << "s3 read" << d->size() << "bytes";
 
-    toread -= d->size();
+    m_toread -= d->size();
     emit data(d);
 
-    if (fin && reply->bytesAvailable() == 0) {
+    if (m_replyFinished && m_reply->bytesAvailable() == 0) {
         qDebug() << "s3 reader finished";
 
-        fin = false;
+        m_replyFinished = false;
 
         emit atEnd();
-        reply->deleteLater();
-        manager->deleteLater();
+        m_reply->deleteLater();
+        m_manager->deleteLater();
     }
 }
 
 void S3ReaderJob::readMoreData()
 {
-    toread += S3_READ_SIZE;
+    m_toread += S3_READ_SIZE;
     readData();
 }
 
 void S3ReaderJob::replyData()
 {
-    if (toread == 0)
+    if (m_toread == 0)
         return;
 
     readData();
