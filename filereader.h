@@ -44,6 +44,7 @@ private:
 
     bool m_atend;
     IOPtr m_reader;
+    bool m_started;
 
     QVector<int> m_pending;
     qint64 m_pendingTotal;
