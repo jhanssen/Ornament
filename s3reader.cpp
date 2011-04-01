@@ -151,6 +151,7 @@ void S3ReaderJob::startJob()
         req.setRawHeader("Range", "bytes=" + QByteArray::number(m_position) + "-");
     }
 
+    qDebug() << "s3 making request";
     m_reply = m_manager->get(req);
     m_reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
     connect(m_reply, SIGNAL(finished()), this, SLOT(replyFinished()));
@@ -257,10 +258,10 @@ void S3ReaderJob::replySslErrors(const QList<QSslError>& errors)
 }
 
 S3Reader::S3Reader(QObject *parent)
-    : AudioReader(parent), m_jobid(0), m_requestedData(false)
+    : AudioReader(parent), m_requestedData(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
-    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
+    connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
 }
 
@@ -313,7 +314,6 @@ void S3Reader::close()
     m_buffer.clear();
     if (m_reader) {
         m_reader->stop();
-        m_jobid = 0;
         m_reader.clear();
     }
 }
@@ -327,7 +327,8 @@ bool S3Reader::open(OpenMode mode)
 
     S3ReaderJob* job = new S3ReaderJob;
     job->setFilename(m_filename);
-    m_jobid = IO::instance()->startJob(job);
+    IO::instance()->startJob(job);
+    m_reader = job;
 
     return AudioReader::open(mode);
 }
@@ -361,13 +362,9 @@ qint64 S3Reader::writeData(const char *data, qint64 len)
     return 0;
 }
 
-void S3Reader::jobCreated(IOJob *job)
+void S3Reader::jobReady(IOJob *job)
 {
-    if (!m_reader && job->jobNumber() == m_jobid) {
-        m_jobid = 0;
-
-        m_reader = job;
-
+    if (m_reader == job) {
         connect(*m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
         connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
         connect(*m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
@@ -378,11 +375,8 @@ void S3Reader::jobCreated(IOJob *job)
 
 void S3Reader::jobFinished(IOJob *job)
 {
-    if ((!m_reader && !m_jobid) || m_reader == job) {
-        m_jobid = 0;
-
+    if (m_reader == job)
         m_reader.clear();
-    }
 
     IOJob::deleteIfNeeded(job);
 }

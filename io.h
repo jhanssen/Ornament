@@ -2,7 +2,6 @@
 #define IO_H
 
 #include <QThread>
-#include <QHash>
 #include <QSet>
 #include <QMutex>
 #include <QMutexLocker>
@@ -22,8 +21,6 @@ public:
     IOJob(QObject* parent = 0);
     ~IOJob();
 
-    int jobNumber() const;
-
     void stop();
 
     bool ref();
@@ -38,11 +35,9 @@ signals:
 protected:
     bool event(QEvent* event);
 
-    void setJobNumber(int no);
     void moveToOrigin();
 
 private:
-    int m_no;
     QThread* m_origin;
     QAtomicInt m_ref;
 
@@ -91,7 +86,7 @@ public:
 
     void stop();
 
-    int startJob(IOJob* job);
+    void startJob(IOJob* job);
 
 protected:
     void run();
@@ -99,7 +94,7 @@ protected:
 
 signals:
     void error(const QString& message);
-    void jobCreated(IOJob* job);
+    void jobReady(IOJob* job);
     void jobFinished(IOJob* job);
 
 private slots:
@@ -108,8 +103,6 @@ private slots:
 private:
     IO(QObject *parent = 0);
 
-    int nextJobNumber();
-
 private:
     static IO* s_inst;
 
@@ -117,8 +110,7 @@ private:
 
     QMutex m_mutex;
 
-    int m_jobcount;
-    QHash<int, IOJob*> m_jobs;
+    QSet<IOJob*> m_jobs;
 };
 
 inline bool operator==(const IOPtr& ptr, const QObject* obj)

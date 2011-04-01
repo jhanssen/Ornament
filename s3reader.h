@@ -31,7 +31,7 @@ protected:
 
 private slots:
     void ioError(const QString& message);
-    void jobCreated(IOJob* job);
+    void jobReady(IOJob* job);
     void jobFinished(IOJob* job);
 
     void readerData(QByteArray* data);
@@ -42,7 +42,6 @@ private:
     QString m_filename;
     Buffer m_buffer;
 
-    int m_jobid;
     IOPtr m_reader;
 
     bool m_atend;
