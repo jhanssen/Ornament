@@ -535,7 +535,7 @@ MediaLibrary* MediaLibrary::s_inst = 0;
 MediaLibrary::MediaLibrary(QObject *parent) :
     QObject(parent), m_settings(0)
 {
-    connect(IO::instance(), SIGNAL(jobCreated(IOJob*)), this, SLOT(jobCreated(IOJob*)));
+    connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
 
     qRegisterMetaType<PathSet>("PathSet");
@@ -608,8 +608,8 @@ void MediaLibrary::incrementalUpdate()
     job->setType(MediaJob::UpdatePaths);
     job->setArg(QVariant::fromValue<PathSet>(toupdate));
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 
     m_updatedPaths += toupdate;
 }
@@ -622,8 +622,8 @@ void MediaLibrary::fullUpdate()
     job->setType(MediaJob::UpdatePaths);
     job->setArg(QVariant::fromValue<PathSet>(m_updatedPaths));
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 }
 
 void MediaLibrary::readLibrary()
@@ -631,8 +631,8 @@ void MediaLibrary::readLibrary()
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::ReadLibrary);
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 }
 
 void MediaLibrary::requestTag(const QString &filename)
@@ -641,8 +641,8 @@ void MediaLibrary::requestTag(const QString &filename)
     job->setType(MediaJob::RequestTag);
     job->setArg(filename);
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 }
 
 void MediaLibrary::requestArtwork(const QString &filename)
@@ -659,8 +659,8 @@ void MediaLibrary::refresh()
     job->setType(MediaJob::Refresh);
     job->setArg(QVariant::fromValue<PathSet>(m_updatedPaths));
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 }
 
 void MediaLibrary::setTag(const QString &filename, const Tag &tag)
@@ -673,8 +673,8 @@ void MediaLibrary::setTag(const QString &filename, const Tag &tag)
     job->setType(MediaJob::SetTag);
     job->setArg(list);
 
-    int jobid = IO::instance()->startJob(job);
-    m_pendingJobs.insert(jobid);
+    IO::instance()->startJob(job);
+    m_jobs.insert(job, IOPtr(job));
 }
 
 void MediaLibrary::tagReceived(const Tag &t)
@@ -714,11 +714,9 @@ void MediaLibrary::processArtwork(const Tag &tag)
     emit artwork(QImage());
 }
 
-void MediaLibrary::jobCreated(IOJob *job)
+void MediaLibrary::jobReady(IOJob *job)
 {
-    if (m_pendingJobs.contains(job->jobNumber())) {
-        m_pendingJobs.remove(job->jobNumber());
-
+    if (m_jobs.contains(job)) {
         MediaJob* media = static_cast<MediaJob*>(job);
 
         connect(media, SIGNAL(tag(Tag)), this, SLOT(tagReceived(Tag)));
@@ -729,7 +727,6 @@ void MediaLibrary::jobCreated(IOJob *job)
         connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
         connect(media, SIGNAL(databaseCleared()), this, SIGNAL(cleared()));
 
-        m_jobs.insert(media, IOPtr(media));
         media->start();
     }
 }
