@@ -89,7 +89,7 @@ void FileJob::setFilename(const QString &filename)
 }
 
 FileReader::FileReader(QObject *parent)
-    : AudioReader(parent), m_atend(false), m_pendingTotal(0)
+    : AudioReader(parent), m_atend(false), m_started(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
@@ -97,7 +97,7 @@ FileReader::FileReader(QObject *parent)
 }
 
 FileReader::FileReader(const QString &filename, QObject *parent)
-    : AudioReader(parent), m_filename(filename), m_atend(false), m_pendingTotal(0)
+    : AudioReader(parent), m_filename(filename), m_atend(false), m_started(false), m_pendingTotal(0)
 {
     connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
     connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
@@ -140,6 +140,7 @@ void FileReader::close()
 
     m_buffer.clear();
     if (m_reader) {
+        m_started = false;
         m_reader->stop();
         m_reader.clear();
         m_pending.clear();
@@ -159,6 +160,7 @@ bool FileReader::open(OpenMode mode)
 
     m_buffer.clear();
     if (m_reader) {
+        m_started = false;
         m_reader->stop();
         m_reader.clear();
         m_pending.clear();
@@ -188,6 +190,7 @@ void FileReader::jobReady(IOJob *job)
 void FileReader::jobFinished(IOJob *job)
 {
     if ((!m_reader && m_pendingTotal) || m_reader == job) {
+        m_started = false;
         m_reader.clear();
         m_pending.clear();
         m_pendingTotal = 0;
@@ -200,6 +203,8 @@ void FileReader::readerStarted()
 {
     if (sender() != m_reader)
         return;
+
+    m_started = true;
 
     int bsz = m_buffer.size();
     while (bsz + m_pendingTotal < FILEREADERDEVICE_MAX) {
@@ -279,7 +284,7 @@ qint64 FileReader::readData(char *data, qint64 maxlen)
     if (!dt.isEmpty())
         memcpy(data, dt.constData(), dt.size());
 
-    if (m_atend || !m_reader)
+    if (m_atend || !m_started)
         return dt.size();
 
     int bsz = m_buffer.size();
