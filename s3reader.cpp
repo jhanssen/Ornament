@@ -4,6 +4,11 @@
 #include "awsconfig.h"
 #include <libs3.h>
 #include <QUrl>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QSslError>
+#include <QTimer>
 #include <QDebug>
 
 class S3ReaderJob : public IOJob
@@ -17,12 +22,17 @@ public:
 
     QString filename;
 
-    void emitAtEnd();
-    void emitData(const char* data, int size);
+private slots:
+    void replyFinished();
+    void replyData();
+    void replyError(QNetworkReply::NetworkError errorType);
+    void replySslErrors(const QList<QSslError>& errors);
 
 private:
     Q_INVOKABLE void startJob();
     S3BucketContext* context;
+    QNetworkAccessManager* manager;
+    QNetworkReply* reply;
 
 signals:
     void data(QByteArray* data);
@@ -31,43 +41,8 @@ signals:
 
 #include "s3reader.moc"
 
-static S3Status dataCallback(int bufferSize, const char* buffer, void* callbackData)
-{
-    S3ReaderJob* job = (S3ReaderJob*)callbackData;
-    job->emitData(buffer, bufferSize);
-
-    return S3StatusOK;
-}
-
-static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails, void* callbackData)
-{
-    Q_UNUSED(status)
-
-    if (errorDetails) {
-        if (errorDetails->message)
-            qDebug() << errorDetails->message;
-        if (errorDetails->resource)
-            qDebug() << errorDetails->resource;
-        if (errorDetails->furtherDetails)
-            qDebug() << errorDetails->furtherDetails;
-    }
-
-    S3ReaderJob* job = (S3ReaderJob*)callbackData;
-    job->emitAtEnd();
-
-    qDebug() << "complete!";
-}
-
-static S3Status propertiesCallback(const S3ResponseProperties* properties, void* callbackData)
-{
-    Q_UNUSED(properties)
-    Q_UNUSED(callbackData)
-
-    return S3StatusOK;
-}
-
 S3ReaderJob::S3ReaderJob(QObject *parent)
-    : IOJob(parent)
+    : IOJob(parent), manager(0), reply(0)
 {
     context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
     context->accessKeyId = AwsConfig::accessKey();
@@ -89,23 +64,55 @@ void S3ReaderJob::start()
 
 void S3ReaderJob::startJob()
 {
-    S3GetObjectHandler objectHandler;
-    objectHandler.responseHandler.completeCallback = completeCallback;
-    objectHandler.responseHandler.propertiesCallback = propertiesCallback;
-    objectHandler.getObjectDataCallback = dataCallback;
+    if (!manager) {
+        manager = new QNetworkAccessManager(this);
+        connect(manager, SIGNAL(destroyed()), this, SIGNAL(finished()));
+    }
+
+    char query[S3_MAX_AUTHENTICATED_QUERY_STRING_SIZE];
+
     QByteArray key = QUrl::toPercentEncoding(filename, "/_");
-    S3_get_object(context, key.constData(), 0, 0, 0, 0, &objectHandler, this);
+    S3Status status = S3_generate_authenticated_query_string(query, context, key.constData(), -1, 0);
+    if (status != S3StatusOK) {
+        qDebug() << "error when generating query string for" << key << "," << status;
+        emit finished();
+        return;
+    }
+
+    QUrl url;
+    url.setEncodedUrl(query, QUrl::TolerantMode);
+
+    QNetworkRequest req(url);
+    reply = manager->get(req);
+    connect(reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    connect(reply, SIGNAL(readyRead()), this, SLOT(replyData()));
+    connect(reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(replyError(QNetworkReply::NetworkError)));
+    connect(reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(replySslErrors(QList<QSslError>)));
 }
 
-void S3ReaderJob::emitAtEnd()
+void S3ReaderJob::replyFinished()
 {
     emit atEnd();
+    reply->deleteLater();
+    manager->deleteLater();
 }
 
-void S3ReaderJob::emitData(const char *d, int size)
+void S3ReaderJob::replyData()
 {
-    QByteArray* array = new QByteArray(d, size);
-    emit data(array);
+    QByteArray* d = new QByteArray(reply->readAll());
+    emit data(d);
+}
+
+void S3ReaderJob::replyError(QNetworkReply::NetworkError errorType)
+{
+    qDebug() << "reply error" << errorType;
+}
+
+void S3ReaderJob::replySslErrors(const QList<QSslError>& errors)
+{
+    foreach(const QSslError& error, errors) {
+        qDebug() << "reply ssl error" << error.errorString();
+    }
 }
 
 S3Reader::S3Reader(QObject *parent)

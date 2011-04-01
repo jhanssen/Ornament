@@ -7,7 +7,7 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . codecs/mad/taglib/taglib codecs/mad/taglib/taglib/toolkit codecs/mad/taglib/taglib/mpeg/id3v2 libs3/inc
 
-QT += multimedia declarative sql
+QT += multimedia declarative sql network
 
 # Input
 HEADERS += codecs/codecs.h \
