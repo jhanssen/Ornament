@@ -33,7 +33,7 @@ QMutex IOJob::m_deletedMutex;
 QSet<IOJob*> IOJob::m_deleted;
 
 IOJob::IOJob(QObject *parent)
-    : QObject(parent), m_no(0), m_origin(QThread::currentThread())
+    : QObject(parent), m_origin(QThread::currentThread())
 {
     QMutexLocker locker(&m_deletedMutex);
 
@@ -45,16 +45,6 @@ IOJob::~IOJob()
     QMutexLocker locker(&m_deletedMutex);
 
     m_deleted.insert(this);
-}
-
-void IOJob::setJobNumber(int no)
-{
-    m_no = no;
-}
-
-int IOJob::jobNumber() const
-{
-    return m_no;
 }
 
 bool IOJob::ref()
@@ -188,7 +178,7 @@ public slots:
 IO* IO::s_inst = 0;
 
 IO::IO(QObject *parent)
-    : QThread(parent), m_jobFinisher(new IOJobFinisher), m_jobcount(1)
+    : QThread(parent), m_jobFinisher(new IOJobFinisher)
 {
     moveToThread(this);
 
@@ -219,12 +209,12 @@ bool IO::event(QEvent *event)
         JobEvent* jobevent = static_cast<JobEvent*>(event);
         IOJob* job = jobevent->m_job;
 
-        m_jobs[job->jobNumber()] = job;
+        m_jobs.insert(job);
         connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()), Qt::DirectConnection);
 
-        qDebug() << "=== new job success!" << job->jobNumber() << job;
+        qDebug() << "=== new job ready!" << job;
 
-        emit jobCreated(job);
+        emit jobReady(job);
 
         return true;
     } else if (event->type() == static_cast<QEvent::Type>(StopEvent::StopType)) {
@@ -250,36 +240,22 @@ void IO::localJobFinished()
         return;
     }
 
-    if (!m_jobs.contains(job->jobNumber())) {
+    if (!m_jobs.contains(job)) {
         emit error(QLatin1String("Job finished but not in the list of jobs: ") + QLatin1String(job->metaObject()->className()));
         delete job;
         return;
     }
 
-    m_jobs.remove(job->jobNumber());
+    m_jobs.remove(job);
     job->moveToOrigin();
 
     emit jobFinished(job);
 }
 
-int IO::nextJobNumber()
+void IO::startJob(IOJob *job)
 {
-    int no = m_jobcount;
-    while (m_jobs.contains(no) || no == 0) // 0 is a reserved number
-        ++no;
-    m_jobcount = no + 1;
-    return no;
-}
-
-int IO::startJob(IOJob *job)
-{
-    int next = nextJobNumber();
-
-    job->setJobNumber(next);
     job->moveToThread(this);
     QCoreApplication::postEvent(this, new JobEvent(job));
-
-    return next;
 }
 
 void IO::stop()

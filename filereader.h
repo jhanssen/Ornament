@@ -30,7 +30,7 @@ protected:
 
 private slots:
     void ioError(const QString& message);
-    void jobCreated(IOJob* job);
+    void jobReady(IOJob* job);
     void jobFinished(IOJob* job);
 
     void readerStarted();
@@ -42,7 +42,6 @@ private:
     QString m_filename;
     Buffer m_buffer;
 
-    int m_jobid;
     bool m_atend;
     IOPtr m_reader;
 

@@ -52,7 +52,7 @@ signals:
     void updateFinished();
 
 private slots:
-    void jobCreated(IOJob* job);
+    void jobReady(IOJob* job);
     void jobFinished(IOJob* job);
     void tagReceived(const Tag& tag);
 
@@ -67,7 +67,6 @@ private:
     PathSet m_updatedPaths;
 
     QSet<QString> m_pendingArtwork;
-    QSet<int> m_pendingJobs;
     QHash<IOJob*, IOPtr> m_jobs;
 };
 
