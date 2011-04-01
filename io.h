@@ -26,23 +26,24 @@ public:
     bool ref();
     bool deref();
 
-    static void deleteIfNeeded(IOJob* job);
+    static bool deleteIfNeeded(IOJob* job);
 
 signals:
     void error(const QString& message);
     void finished();
 
 protected:
-    bool event(QEvent* event);
-
     void moveToOrigin();
+
+private:
+    Q_INVOKABLE void stopJob();
 
 private:
     QThread* m_origin;
     QAtomicInt m_ref;
 
-    static QMutex m_deletedMutex;
-    static QSet<IOJob*> m_deleted;
+    static QMutex s_deletedMutex;
+    static QSet<IOJob*> s_deleted;
 
     friend class IO;
 };
@@ -85,12 +86,11 @@ public:
     static void init();
 
     void stop();
-
+    void cleanup();
     void startJob(IOJob* job);
 
 protected:
     void run();
-    bool event(QEvent* event);
 
 signals:
     void error(const QString& message);
@@ -102,6 +102,10 @@ private slots:
 
 private:
     IO(QObject *parent = 0);
+
+    Q_INVOKABLE void cleanupIO();
+    Q_INVOKABLE void stopIO();
+    Q_INVOKABLE void startJobIO(IOJob* job);
 
 private:
     static IO* s_inst;
