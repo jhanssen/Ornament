@@ -161,13 +161,15 @@ void S3ReaderJob::startJob()
 
 void S3ReaderJob::replyFinished()
 {
-    if (m_state == Paused) {
-        QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+    if (m_state == Paused || reply != m_reply) {
         if (reply)
             reply->deleteLater();
 
-        qDebug() << "s3 reply was finished when pausing";
+        qDebug() << "s3 reply was finished (after pausing)";
 
+        if (m_reply == reply)
+            m_reply = 0;
         return;
     }
 
