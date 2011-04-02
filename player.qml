@@ -525,11 +525,9 @@ Rectangle {
                 AnchorChanges { target: statusWindow; anchors.top: undefined; anchors.bottom: listWrapper.top }
             }
         ]
-        transitions: [
-            Transition {
-                AnchorAnimation { duration: 200 }
-            }
-        ]
+        transitions: Transition {
+            AnchorAnimation { duration: 200 }
+        }
     }
 
     states: [
