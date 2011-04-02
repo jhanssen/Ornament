@@ -5,7 +5,7 @@ QMutex IOJob::s_deletedMutex;
 QSet<IOJob*> IOJob::s_deleted;
 
 IOJob::IOJob(QObject *parent)
-    : QObject(parent), m_origin(QThread::currentThread())
+    : QObject(parent), m_origin(QThread::currentThread()), m_io(0)
 {
     QMutexLocker locker(&s_deletedMutex);
 
@@ -31,6 +31,9 @@ bool IOJob::deref()
 
 bool IOJob::deleteIfNeeded(IOJob *job)
 {
+    if (!job)
+        return false;
+
     QMutexLocker locker(&s_deletedMutex);
 
     if (s_deleted.contains(job))
@@ -53,6 +56,10 @@ void IOJob::stop()
 
 void IOJob::stopJob()
 {
+    Q_ASSERT(m_io->thread() == thread());
+
+    if (m_io)
+        m_io->jobStopped(this);
     emit finished();
 }
 
@@ -132,31 +139,18 @@ IOJob* IOPtr::operator*() const
     return m_job;
 }
 
-class IOJobFinisher : public QObject
-{
-    Q_OBJECT
-public:
-    IOJobFinisher(QObject* parent = 0);
-
-public slots:
-    void jobFinished(IOJob* job);
-};
-
 #include "io.moc"
 
 IO* IO::s_inst = 0;
 
 IO::IO(QObject *parent)
-    : QThread(parent), m_jobFinisher(new IOJobFinisher)
+    : QThread(parent)
 {
     moveToThread(this);
-
-    connect(this, SIGNAL(jobFinished(IOJob*)), m_jobFinisher, SLOT(jobFinished(IOJob*)), Qt::QueuedConnection);
 }
 
 IO::~IO()
 {
-    delete m_jobFinisher;
 }
 
 IO* IO::instance()
@@ -177,11 +171,11 @@ void IO::init()
 void IO::startJobIO(IOJob *job)
 {
     m_jobs.insert(job);
-    connect(job, SIGNAL(finished()), this, SLOT(localJobFinished()), Qt::DirectConnection);
+    job->m_io = this;
 
     qDebug() << "=== new job ready!" << job;
 
-    emit jobReady(job);
+    emit job->started();
 }
 
 void IO::stopIO()
@@ -208,14 +202,8 @@ void IO::run()
     m_jobs.clear();
 }
 
-void IO::localJobFinished()
+void IO::jobStopped(IOJob *job)
 {
-    IOJob* job = qobject_cast<IOJob*>(sender());
-    if (!job) {
-        emit error(QLatin1String("Job finished but not a job"));
-        return;
-    }
-
     if (!m_jobs.contains(job)) {
         emit error(QLatin1String("Job finished but not in the list of jobs: ") + QLatin1String(job->metaObject()->className()));
         delete job;
@@ -225,7 +213,12 @@ void IO::localJobFinished()
     m_jobs.remove(job);
     job->moveToOrigin();
 
-    emit jobFinished(job);
+    QMetaObject::invokeMethod(this, "deleteJobLater", Q_ARG(IOJob*, job));
+}
+
+void IO::deleteJobLater(IOJob *job)
+{
+    IOJob::deleteIfNeeded(job);
 }
 
 void IO::startJob(IOJob *job)
@@ -243,12 +236,3 @@ void IO::cleanup()
     QMetaObject::invokeMethod(this, "cleanupIO");
 }
 
-IOJobFinisher::IOJobFinisher(QObject *parent)
-    : QObject(parent)
-{
-}
-
-void IOJobFinisher::jobFinished(IOJob* job)
-{
-    IOJob::deleteIfNeeded(job);
-}

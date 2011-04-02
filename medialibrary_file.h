@@ -52,13 +52,14 @@ signals:
     void updateFinished();
 
 private slots:
-    void jobReady(IOJob* job);
-    void jobFinished(IOJob* job);
+    void jobStarted();
+    void jobFinished();
     void tagReceived(const Tag& tag);
 
 private:
     void processArtwork(const Tag& tag);
     void syncSettings();
+    void startJob(IOJob* job);
 
 private:
     MediaLibraryFile(QObject *parent = 0);

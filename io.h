@@ -12,7 +12,6 @@
 #include <QEvent>
 
 class IO;
-class IOJobFinisher;
 
 class IOJob : public QObject
 {
@@ -21,15 +20,17 @@ public:
     IOJob(QObject* parent = 0);
     ~IOJob();
 
-    void stop();
-
     bool ref();
     bool deref();
 
     static bool deleteIfNeeded(IOJob* job);
 
+public slots:
+    void stop();
+
 signals:
     void error(const QString& message);
+    void started();
     void finished();
 
 protected:
@@ -41,6 +42,7 @@ private:
 private:
     QThread* m_origin;
     QAtomicInt m_ref;
+    IO* m_io;
 
     static QMutex s_deletedMutex;
     static QSet<IOJob*> s_deleted;
@@ -94,11 +96,6 @@ protected:
 
 signals:
     void error(const QString& message);
-    void jobReady(IOJob* job);
-    void jobFinished(IOJob* job);
-
-private slots:
-    void localJobFinished();
 
 private:
     IO(QObject *parent = 0);
@@ -106,15 +103,17 @@ private:
     Q_INVOKABLE void cleanupIO();
     Q_INVOKABLE void stopIO();
     Q_INVOKABLE void startJobIO(IOJob* job);
+    Q_INVOKABLE void deleteJobLater(IOJob* job);
+
+    void jobStopped(IOJob* job);
 
 private:
     static IO* s_inst;
 
-    IOJobFinisher* m_jobFinisher;
-
     QMutex m_mutex;
-
     QSet<IOJob*> m_jobs;
+
+    friend class IOJob;
 };
 
 inline bool operator==(const IOPtr& ptr, const QObject* obj)

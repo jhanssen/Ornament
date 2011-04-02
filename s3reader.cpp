@@ -129,7 +129,7 @@ void S3ReaderJob::startJob()
 {
     if (!m_manager) {
         m_manager = new QNetworkAccessManager(this);
-        connect(m_manager, SIGNAL(destroyed()), this, SIGNAL(finished()));
+        connect(m_manager, SIGNAL(destroyed()), this, SLOT(stop()));
     }
 
     char query[S3_MAX_AUTHENTICATED_QUERY_STRING_SIZE];
@@ -138,7 +138,7 @@ void S3ReaderJob::startJob()
     S3Status status = S3_generate_authenticated_query_string(query, m_context, key.constData(), -1, 0);
     if (status != S3StatusOK) {
         qDebug() << "error when generating query string for" << key << "," << status;
-        emit finished();
+        stop();
         return;
     }
 
@@ -261,8 +261,6 @@ S3Reader::S3Reader(QObject *parent)
     : AudioReader(parent), m_requestedData(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
-    connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
-    connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
 }
 
 S3Reader::~S3Reader()
@@ -327,6 +325,10 @@ bool S3Reader::open(OpenMode mode)
 
     S3ReaderJob* job = new S3ReaderJob;
     job->setFilename(m_filename);
+
+    connect(job, SIGNAL(started()), this, SLOT(jobStarted()));
+    connect(job, SIGNAL(finished()), this, SLOT(jobFinished()));
+
     IO::instance()->startJob(job);
     m_reader = job;
 
@@ -362,21 +364,20 @@ qint64 S3Reader::writeData(const char *data, qint64 len)
     return 0;
 }
 
-void S3Reader::jobReady(IOJob *job)
+void S3Reader::jobStarted()
 {
-    if (m_reader == job) {
-        connect(*m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
-        connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-        connect(*m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
+    connect(*m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
+    connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
+    connect(*m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
 
-        m_reader.as<S3ReaderJob>()->start();
-    }
+    m_reader.as<S3ReaderJob>()->start();
 }
 
-void S3Reader::jobFinished(IOJob *job)
+void S3Reader::jobFinished()
 {
-    if (m_reader == job)
-        m_reader.clear();
+    IOJob* job = *m_reader;
+
+    m_reader.clear();
 
     IOJob::deleteIfNeeded(job);
 }
