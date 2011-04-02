@@ -30,7 +30,7 @@ class AudioPlayer : public QObject
 {
     Q_OBJECT
 
-    Q_PROPERTY(QString filename READ filename WRITE setFilename)
+    Q_PROPERTY(QString filename READ filename WRITE setFilename NOTIFY filenameChanged)
     Q_PROPERTY(AudioDevice* audioDevice READ audioDevice WRITE setAudioDevice)
     Q_PROPERTY(State state READ state)
     Q_PROPERTY(QString windowTitle READ windowTitle WRITE setWindowTitle)
@@ -59,6 +59,7 @@ signals:
     void stateChanged();
     void artworkAvailable();
     void positionChanged(int position);
+    void filenameChanged();
 
 public slots:
     void play();
