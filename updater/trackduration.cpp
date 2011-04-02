@@ -17,9 +17,9 @@
 */
 
 #include "trackduration.h"
-#include "codecs/mad/mad/include/mad.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2frame.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2framefactory.h"
+#include <mad.h>
+#include <taglib/id3v2frame.h>
+#include <taglib/id3v2framefactory.h>
 #include <math.h>
 #include <QFile>
 #include <QDebug>

@@ -5,7 +5,12 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . .. ../codecs/mad/taglib/taglib ../codecs/mad/taglib/taglib/toolkit ../codecs/mad/taglib/taglib/mpeg/id3v2 ../libs3/inc
+INCLUDEPATH += . .. ../libs3/inc
+
+mac {
+    INCLUDEPATH += /opt/local/include
+    LIBS += -L/opt/local/lib
+}
 
 # Input
 SOURCES += main.cpp ../tag.cpp ../awsconfig.cpp \
@@ -17,4 +22,4 @@ HEADERS += ../tag.h ../awsconfig.h \
 
 DEFINES += BUILDING_UPDATER
 
-LIBS += ../codecs/mad/mad/libmad.a ../libs3/build/lib/libs3.a -ltag -lcurl -lxml2
+LIBS += ../libs3/build/lib/libs3.a -lmad -ltag -lcurl -lxml2
