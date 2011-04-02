@@ -17,6 +17,7 @@
 */
 
 #include "codecdevice.h"
+#include "audioreader.h"
 #include "codecs/codec.h"
 #include <QApplication>
 #include <QDebug>
@@ -25,8 +26,8 @@
 #define CODEC_BUFFER_MAX (16384 * 50)
 #define CODEC_INPUT_READ 8192
 
-CodecDevice::CodecDevice(QObject *parent) :
-    QIODevice(parent), m_input(0), m_codec(0)
+CodecDevice::CodecDevice(QObject *parent)
+    : QIODevice(parent), m_input(0), m_codec(0)
 {
 }
 
@@ -38,11 +39,10 @@ CodecDevice::~CodecDevice()
 
 bool CodecDevice::isSequential() const
 {
-    qDebug() << "seq!";
     return true;
 }
 
-void CodecDevice::setInputDevice(QIODevice *input)
+void CodecDevice::setInputReader(AudioReader *input)
 {
     m_input = input;
 }
@@ -67,9 +67,9 @@ bool CodecDevice::fillBuffer()
             if (input.isEmpty())
                 break;
 
-            qDebug() << "feeding" << input.size();
+            //qDebug() << "feeding" << input.size();
             m_codec->feed(input, m_input->atEnd());
-            qDebug() << "feed complete, decoding";
+            //qDebug() << "feed complete, decoding";
         } else if (status == Codec::Error) {
             qDebug() << "codec error";
             break;
@@ -77,7 +77,7 @@ bool CodecDevice::fillBuffer()
 
         do {
             status = m_codec->decode();
-            qDebug() << "decode status" << status;
+            //qDebug() << "decode status" << status;
         } while (status == Codec::Ok);
     } while (m_decoded.size() < CODEC_BUFFER_MAX);
 
@@ -102,7 +102,7 @@ qint64 CodecDevice::bytesAvailable() const
 
 qint64 CodecDevice::readData(char *data, qint64 maxlen)
 {
-    qDebug() << "we go?" << m_decoded.size();
+    //qDebug() << "we go?" << m_decoded.size();
     if (m_decoded.size() < CODEC_BUFFER_MIN) {
         if (!fillBuffer() && m_decoded.isEmpty()) {
             qDebug() << "no go :(";
@@ -112,7 +112,7 @@ qint64 CodecDevice::readData(char *data, qint64 maxlen)
     }
 
     qint64 toread = qMin(maxlen, static_cast<qint64>(m_decoded.size()));
-    qDebug() << "toread" << toread << m_decoded.size();
+    //qDebug() << "toread" << toread << m_decoded.size();
     if (toread == 0)
         return 0;
 
@@ -134,4 +134,14 @@ qint64 CodecDevice::writeData(const char *data, qint64 len)
 void CodecDevice::codecOutput(QByteArray* output)
 {
     m_decoded.add(output);
+}
+
+void CodecDevice::pauseReader()
+{
+    m_input->pause();
+}
+
+void CodecDevice::resumeReader()
+{
+    m_input->resume();
 }

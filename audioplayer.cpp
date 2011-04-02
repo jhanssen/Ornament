@@ -35,6 +35,13 @@ AudioPlayer::AudioPlayer(QObject *parent) :
     AudioImageProvider::setCurrentAudioPlayer(this);
 
     connect(MediaLibrary::instance(), SIGNAL(artwork(QImage)), this, SLOT(artworkReady(QImage)));
+
+    qDebug() << "constructing audioplayer" << this;
+}
+
+AudioPlayer::~AudioPlayer()
+{
+    qDebug() << "destructing audioplayer" << this;
 }
 
 QString AudioPlayer::filename() const
@@ -145,7 +152,7 @@ void AudioPlayer::play()
         delete m_codec;
         m_codec = 0;
 
-        QByteArray mime = MediaLibrary::mimeType(m_filename);
+        QByteArray mime = MediaLibrary::instance()->mimeType(m_filename);
         if (mime.isEmpty())
             return;
 
@@ -156,10 +163,10 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
-        FileReader* file = new FileReader(m_filename);
-        if (!file->open(FileReader::ReadOnly)) {
+        AudioReader* reader = MediaLibrary::instance()->readerForFilename(m_filename);
+        if (!reader->open(FileReader::ReadOnly)) {
             delete codec;
-            delete file;
+            delete reader;
 
             return;
         }
@@ -172,7 +179,7 @@ void AudioPlayer::play()
 
         m_codec = new CodecDevice(this);
         m_codec->setCodec(codec);
-        m_codec->setInputDevice(file);
+        m_codec->setInputReader(reader);
 
         if (!m_codec->open(CodecDevice::ReadOnly)) {
             delete m_codec;
@@ -186,6 +193,7 @@ void AudioPlayer::play()
 
         m_audio->output()->start(m_codec);
     } else if (m_state == Paused) {
+        m_codec->resumeReader();
         m_audio->output()->resume();
     }
 }
@@ -203,6 +211,7 @@ void AudioPlayer::pause()
         return;
 
     m_audio->output()->suspend();
+    m_codec->pauseReader();
 }
 
 void AudioPlayer::stop()
@@ -211,6 +220,7 @@ void AudioPlayer::stop()
         return;
 
     m_audio->output()->stop();
+    m_codec->pauseReader();
 }
 
 AudioPlayer* AudioImageProvider::s_currentPlayer = 0;

@@ -103,7 +103,7 @@ int AudioFileInformationMad::length() const
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(infostream.bufend - infostream.this_frame);
                     if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), header.size()));
+                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
                         uint tagsize = header.tagSize();
                         if (tagsize > 0) {
                             mad_stream_skip(&infostream, qMin(tagsize, size));
@@ -237,9 +237,9 @@ void CodecMad::feed(const QByteArray& data, bool end)
 {
     static int totalpushed = 0;
     totalpushed += data.size();
-    qDebug() << "total pushed" << totalpushed;
+    //qDebug() << "total pushed" << totalpushed;
 
-    qDebug() << "had" << m_data.size() << "bytes already before pushing" << data.size();
+    //qDebug() << "had" << m_data.size() << "bytes already before pushing" << data.size();
     m_data += data;
 
     size_t rem = 0, copylen;
@@ -250,7 +250,7 @@ void CodecMad::feed(const QByteArray& data, bool end)
             memmove(m_buffer, m_stream.next_frame, rem);
         }
 
-        qDebug() << "rem?" << rem;
+        //qDebug() << "rem?" << rem;
 
         copylen = qMin(INPUT_BUFFER_SIZE - rem, static_cast<long unsigned int>(m_data.size()));
         memcpy(m_buffer + rem, m_data.constData(), copylen);
@@ -261,7 +261,7 @@ void CodecMad::feed(const QByteArray& data, bool end)
             copylen += MAD_BUFFER_GUARD;
         }
 
-        qDebug() << "pushing" << copylen + rem << "bytes to mad";
+        //qDebug() << "pushing" << copylen + rem << "bytes to mad";
 
         mad_stream_buffer(&m_stream, m_buffer, copylen + rem);
         m_stream.error = static_cast<mad_error>(0);
@@ -277,7 +277,7 @@ CodecMad::Status CodecMad::decode()
                     TagLib::ID3v2::Header header;
                     uint size = (uint)(m_stream.bufend - m_stream.this_frame);
                     if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), header.size()));
+                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
                         uint tagsize = header.tagSize();
                         if (tagsize > 0)
                             mad_stream_skip(&m_stream, qMin(tagsize, size));

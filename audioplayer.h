@@ -39,6 +39,7 @@ public:
     enum State { Stopped, Paused, Playing, Done };
 
     AudioPlayer(QObject *parent = 0);
+    ~AudioPlayer();
 
     QString filename() const;
     void setFilename(const QString& filename);

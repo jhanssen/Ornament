@@ -21,7 +21,9 @@
 #include "musicmodel.h"
 #include "io.h"
 #include "codecs/codecs.h"
-#include "medialibrary.h"
+#include "medialibrary_file.h"
+#include "medialibrary_s3.h"
+#include "awsconfig.h"
 
 #include <QApplication>
 #include <QDeclarativeComponent>
@@ -53,9 +55,23 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
+    bool s3 = false;
+    for (int i = 1; i < argc; ++i) {
+        if (qstrcmp(argv[i], "-s3") == 0)
+            s3 = true;
+    }
+
+    if (s3 && !AwsConfig::init()) {
+        qDebug() << "unable to read aws config from ~/.player-aws";
+        return 1;
+    }
+
     IO::init();
     Codecs::init();
-    MediaLibrary::init();
+    if (s3)
+        MediaLibraryS3::init();
+    else
+        MediaLibraryFile::init();
 
     QSettings settings(QLatin1String("hepp"), QLatin1String("player"));
     MediaLibrary::instance()->setSettings(&settings);

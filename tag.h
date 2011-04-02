@@ -39,6 +39,9 @@ public:
     bool isValid() const;
 
 private:
+#ifdef BUILDING_UPDATER
+public:
+#endif
     Tag(const QString& filename);
 
     QString m_filename;

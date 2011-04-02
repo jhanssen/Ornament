@@ -5,13 +5,14 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
+INCLUDEPATH += . libs3/inc
 
 mac {
     INCLUDEPATH += /opt/local/include
     LIBS += -L/opt/local/lib
 }
 
-QT += multimedia declarative sql
+QT += multimedia declarative sql network
 
 # Input
 HEADERS += codecs/codecs.h \
@@ -25,7 +26,12 @@ HEADERS += codecs/codecs.h \
     io.h \
     filereader.h \
     buffer.h \
-    medialibrary.h
+    medialibrary_file.h \
+    medialibrary.h \
+    medialibrary_s3.h \
+    s3reader.h \
+    awsconfig.h \
+    audioreader.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -39,9 +45,14 @@ SOURCES += main.cpp \
     io.cpp \
     filereader.cpp \
     buffer.cpp \
-    medialibrary.cpp
+    medialibrary_file.cpp \
+    medialibrary.cpp \
+    medialibrary_s3.cpp \
+    s3reader.cpp \
+    awsconfig.cpp \
+    audioreader.cpp
 
-LIBS += -lmad -ltag
+LIBS += libs3/build/lib/libs3.a -lmad -ltag -lcurl -lxml2
 
 OTHER_FILES += \
     player.qml \
