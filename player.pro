@@ -5,7 +5,11 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . codecs/mad/taglib/taglib codecs/mad/taglib/taglib/toolkit codecs/mad/taglib/taglib/mpeg/id3v2
+
+mac {
+    INCLUDEPATH += /opt/local/include
+    LIBS += -L/opt/local/lib
+}
 
 QT += multimedia declarative sql
 
@@ -37,7 +41,7 @@ SOURCES += main.cpp \
     buffer.cpp \
     medialibrary.cpp
 
-LIBS += codecs/mad/mad/libmad.a -ltag
+LIBS += -lmad -ltag
 
 OTHER_FILES += \
     player.qml \

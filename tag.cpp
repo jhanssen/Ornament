@@ -1,10 +1,10 @@
 #include "tag.h"
-#include "codecs/mad/taglib/taglib/fileref.h"
-#include "codecs/mad/taglib/taglib/tag.h"
-#include "codecs/mad/taglib/taglib/mpeg/mpegfile.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2tag.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/id3v2frame.h"
-#include "codecs/mad/taglib/taglib/mpeg/id3v2/frames/attachedpictureframe.h"
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
+#include <taglib/mpegfile.h>
+#include <taglib/id3v2tag.h>
+#include <taglib/id3v2frame.h>
+#include <taglib/attachedpictureframe.h>
 #include <QImage>
 
 template<typename T>
