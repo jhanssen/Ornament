@@ -258,7 +258,7 @@ void S3ReaderJob::replySslErrors(const QList<QSslError>& errors)
 }
 
 S3Reader::S3Reader(QObject *parent)
-    : AudioReader(parent), m_requestedData(false)
+    : AudioReader(parent), m_reader(0), m_atend(false), m_requestedData(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
@@ -270,14 +270,14 @@ S3Reader::~S3Reader()
 void S3Reader::pause()
 {
     if (m_reader)
-        m_reader.as<S3ReaderJob>()->pause();
+        m_reader->pause();
 }
 
 void S3Reader::resume()
 {
     if (m_reader) {
-        m_reader.as<S3ReaderJob>()->resume();
-        m_reader.as<S3ReaderJob>()->readMore();
+        m_reader->resume();
+        m_reader->readMore();
         m_requestedData = true;
     }
 }
@@ -312,7 +312,7 @@ void S3Reader::close()
     m_buffer.clear();
     if (m_reader) {
         m_reader->stop();
-        m_reader.clear();
+        m_reader = 0;
     }
 }
 
@@ -349,7 +349,7 @@ qint64 S3Reader::readData(char *data, qint64 maxlen)
 
     if (!m_requestedData && m_buffer.size() < S3_MIN_BUFFER_SIZE && m_reader) {
         qDebug() << "s3 buffer low, requesting more";
-        m_reader.as<S3ReaderJob>()->readMore();
+        m_reader->readMore();
         m_requestedData = true;
     }
 
@@ -366,27 +366,27 @@ qint64 S3Reader::writeData(const char *data, qint64 len)
 
 void S3Reader::jobStarted()
 {
-    connect(*m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
-    connect(*m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-    connect(*m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
+    connect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
+    connect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
+    connect(m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
 
-    m_reader.as<S3ReaderJob>()->start();
+    m_reader->start();
 }
 
 void S3Reader::jobFinished()
 {
-    IOJob* job = *m_reader;
-
-    m_reader.clear();
-
-    IOJob::deleteIfNeeded(job);
+    IOJob* job = qobject_cast<IOJob*>(sender());
+    if (job)
+        job->deleteLater();
+    if (job == m_reader)
+        m_reader = 0;
 }
 
 void S3Reader::readerStarving()
 {
     if (m_buffer.size() < S3_MIN_BUFFER_SIZE && m_reader) {
         qDebug() << "s3 job starvation, requesting more";
-        m_reader.as<S3ReaderJob>()->readMore();
+        m_reader->readMore();
         m_requestedData = true;
     }
 }

@@ -7,6 +7,8 @@
 #include <QFile>
 #include <QVector>
 
+class FileJob;
+
 class FileReader : public AudioReader
 {
     Q_OBJECT
@@ -44,7 +46,7 @@ private:
     Buffer m_buffer;
 
     bool m_atend;
-    IOPtr m_reader;
+    FileJob* m_reader;
     bool m_started;
 
     QVector<int> m_pending;

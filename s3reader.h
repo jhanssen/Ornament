@@ -5,6 +5,8 @@
 #include "buffer.h"
 #include "io.h"
 
+class S3ReaderJob;
+
 class S3Reader : public AudioReader
 {
     Q_OBJECT
@@ -42,7 +44,7 @@ private:
     QString m_filename;
     Buffer m_buffer;
 
-    IOPtr m_reader;
+    S3ReaderJob* m_reader;
 
     bool m_atend;
 

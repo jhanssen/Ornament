@@ -572,7 +572,6 @@ void MediaLibraryFile::startJob(IOJob *job)
     connect(job, SIGNAL(finished()), this, SLOT(jobFinished()));
 
     IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
 }
 
 QStringList MediaLibraryFile::paths()
@@ -723,14 +722,11 @@ void MediaLibraryFile::jobStarted()
 
 void MediaLibraryFile::jobFinished()
 {
-    QObject* from = sender();
-    if (!from)
+    MediaJob* job = qobject_cast<MediaJob*>(sender());
+    if (!job)
         return;
 
-    MediaJob* media = static_cast<MediaJob*>(from);
-    m_jobs.remove(media);
-
-    IOJob::deleteIfNeeded(media);
+    job->deleteLater();
 }
 
 QByteArray MediaLibraryFile::mimeType(const QString &filename) const

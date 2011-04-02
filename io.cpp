@@ -1,52 +1,13 @@
 #include "io.h"
 #include <QDebug>
 
-QMutex IOJob::s_deletedMutex;
-QSet<IOJob*> IOJob::s_deleted;
-
 IOJob::IOJob(QObject *parent)
     : QObject(parent), m_origin(QThread::currentThread()), m_io(0)
 {
-    QMutexLocker locker(&s_deletedMutex);
-
-    s_deleted.remove(this);
 }
 
 IOJob::~IOJob()
 {
-    QMutexLocker locker(&s_deletedMutex);
-
-    s_deleted.insert(this);
-}
-
-bool IOJob::ref()
-{
-    return m_ref.ref();
-}
-
-bool IOJob::deref()
-{
-    return m_ref.deref();
-}
-
-bool IOJob::deleteIfNeeded(IOJob *job)
-{
-    if (!job)
-        return false;
-
-    QMutexLocker locker(&s_deletedMutex);
-
-    if (s_deleted.contains(job))
-        return false;
-
-    if (!job->m_ref) {
-        s_deleted.insert(job);
-
-        QMetaObject::invokeMethod(job, "deleteLater");
-        return true;
-    }
-
-    return false;
 }
 
 void IOJob::stop()
@@ -66,77 +27,6 @@ void IOJob::stopJob()
 void IOJob::moveToOrigin()
 {
     moveToThread(m_origin);
-}
-
-IOPtr::IOPtr(IOJob* job)
-    : m_job(job)
-{
-    if (m_job)
-        m_job->ref();
-}
-
-IOPtr::IOPtr(const IOPtr& ptr)
-    : m_job(ptr.m_job)
-{
-    if (m_job)
-        m_job->ref();
-}
-
-IOPtr::~IOPtr()
-{
-    if (m_job)
-        m_job->deref();
-}
-
-IOPtr& IOPtr::operator=(const IOPtr& ptr)
-{
-    if (m_job)
-        m_job->deref();
-
-    m_job = ptr.m_job;
-    if (m_job)
-        m_job->ref();
-
-    return *this;
-}
-
-IOPtr& IOPtr::operator=(IOJob* job)
-{
-    if (m_job)
-        m_job->deref();
-
-    m_job = job;
-    if (m_job)
-        m_job->ref();
-
-    return *this;
-}
-
-bool IOPtr::clear()
-{
-    if (m_job) {
-        m_job->deref();
-        m_job = 0;
-        return true;
-    }
-
-    m_job = 0;
-    return false;
-}
-
-IOPtr::operator bool() const
-{
-    return (m_job != 0);
-}
-
-IOJob* IOPtr::operator->() const
-{
-    return m_job;
-}
-
-IOJob* IOPtr::operator*() const
-{
-    return m_job;
 }
 
 #include "io.moc"
@@ -183,17 +73,6 @@ void IO::stopIO()
     exit();
 }
 
-void IO::cleanupIO()
-{
-    QSet<IOJob*>::iterator it = m_jobs.begin();
-    while (it != m_jobs.end()) {
-        if (IOJob::deleteIfNeeded(*it))
-            it = m_jobs.erase(it);
-        else
-            ++it;
-    }
-}
-
 void IO::run()
 {
     exec();
@@ -212,13 +91,6 @@ void IO::jobStopped(IOJob *job)
 
     m_jobs.remove(job);
     job->moveToOrigin();
-
-    QMetaObject::invokeMethod(this, "deleteJobLater", Q_ARG(IOJob*, job));
-}
-
-void IO::deleteJobLater(IOJob *job)
-{
-    IOJob::deleteIfNeeded(job);
 }
 
 void IO::startJob(IOJob *job)
@@ -231,9 +103,3 @@ void IO::stop()
 {
     QMetaObject::invokeMethod(this, "stopIO");
 }
-
-void IO::cleanup()
-{
-    QMetaObject::invokeMethod(this, "cleanupIO");
-}
-

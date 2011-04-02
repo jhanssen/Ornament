@@ -15,7 +15,7 @@
 typedef QSet<QString> PathSet;
 
 class IOJob;
-class IOPtr;
+class MediaJob;
 
 class MediaLibraryFile : public MediaLibrary
 {
@@ -68,7 +68,6 @@ private:
     PathSet m_updatedPaths;
 
     QSet<QString> m_pendingArtwork;
-    QHash<IOJob*, IOPtr> m_jobs;
 };
 
 class MediaModel : public QAbstractListModel
