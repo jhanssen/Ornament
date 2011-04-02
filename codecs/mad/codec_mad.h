@@ -2,7 +2,7 @@
 #define PLAYERCODEC_MAD_H
 
 #include "codecs/codec.h"
-#include "codecs/mad/mad/include/mad.h"
+#include <mad.h>
 
 #include <QHash>
 #include <QList>
