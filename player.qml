@@ -76,11 +76,11 @@ Rectangle {
 
     function playNext() {
         var cur = musicModel.positionFromFilename(audioPlayer.filename)
-        console.log("ahem! " + audioPlayer.filename + " - " + cur + " >>> " + musicModel.trackCount())
         if (cur !== -1 && cur + 1 < musicModel.trackCount()) {
             playFile(musicModel.filenameByPosition(cur + 1))
             return true
         }
+        audioPlayer.filename = ""
         return false
     }
 
