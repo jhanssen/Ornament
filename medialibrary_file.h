@@ -15,7 +15,7 @@
 typedef QSet<QString> PathSet;
 
 class IOJob;
-class IOPtr;
+class MediaJob;
 
 class MediaLibraryFile : public MediaLibrary
 {
@@ -37,7 +37,7 @@ public:
     void requestArtwork(const QString& filename);
     void requestMetaData(const QString& filename);
 
-    QIODevice* deviceForFilename(const QString &filename);
+    AudioReader* readerForFilename(const QString &filename);
 
     void setSettings(QSettings *settings);
 
@@ -52,13 +52,14 @@ signals:
     void updateFinished();
 
 private slots:
-    void jobReady(IOJob* job);
-    void jobFinished(IOJob* job);
+    void jobStarted();
+    void jobFinished();
     void tagReceived(const Tag& tag);
 
 private:
     void processArtwork(const Tag& tag);
     void syncSettings();
+    void startJob(IOJob* job);
 
 private:
     MediaLibraryFile(QObject *parent = 0);
@@ -67,7 +68,6 @@ private:
     PathSet m_updatedPaths;
 
     QSet<QString> m_pendingArtwork;
-    QHash<IOJob*, IOPtr> m_jobs;
 };
 
 class MediaModel : public QAbstractListModel

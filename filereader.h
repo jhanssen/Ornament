@@ -3,10 +3,13 @@
 
 #include "io.h"
 #include "buffer.h"
+#include "audioreader.h"
 #include <QFile>
 #include <QVector>
 
-class FileReader : public QIODevice
+class FileJob;
+
+class FileReader : public AudioReader
 {
     Q_OBJECT
 public:
@@ -30,8 +33,8 @@ protected:
 
 private slots:
     void ioError(const QString& message);
-    void jobReady(IOJob* job);
-    void jobFinished(IOJob* job);
+    void jobStarted();
+    void jobFinished();
 
     void readerStarted();
     void readerData(QByteArray* data);
@@ -43,7 +46,7 @@ private:
     Buffer m_buffer;
 
     bool m_atend;
-    IOPtr m_reader;
+    FileJob* m_reader;
     bool m_started;
 
     QVector<int> m_pending;

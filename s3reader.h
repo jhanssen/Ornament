@@ -1,11 +1,13 @@
 #ifndef S3READER_H
 #define S3READER_H
 
-#include <QIODevice>
+#include "audioreader.h"
 #include "buffer.h"
 #include "io.h"
 
-class S3Reader : public QIODevice
+class S3ReaderJob;
+
+class S3Reader : public AudioReader
 {
     Q_OBJECT
 public:
@@ -22,25 +24,31 @@ public:
     void close();
     bool open(OpenMode mode);
 
+    void pause();
+    void resume();
+
 protected:
     qint64 readData(char *data, qint64 maxlen);
     qint64 writeData(const char *data, qint64 len);
 
 private slots:
     void ioError(const QString& message);
-    void jobReady(IOJob* job);
-    void jobFinished(IOJob* job);
+    void jobStarted();
+    void jobFinished();
 
     void readerData(QByteArray* data);
     void readerAtEnd();
+    void readerStarving();
 
 private:
     QString m_filename;
     Buffer m_buffer;
 
-    IOPtr m_reader;
+    S3ReaderJob* m_reader;
 
     bool m_atend;
+
+    bool m_requestedData;
 };
 
 #endif // S3READER_H

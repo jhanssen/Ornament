@@ -488,7 +488,7 @@ void MediaJob::updatePaths(const PathSet &paths)
         QTimer::singleShot(50, this, SLOT(updatePaths()));
     } else {
         emit updateFinished();
-        emit finished();
+        stop();
     }
 }
 
@@ -498,7 +498,7 @@ void MediaJob::updatePaths()
         QTimer::singleShot(50, this, SLOT(updatePaths()));
     else {
         emit updateFinished();
-        emit finished();
+        stop();
     }
 }
 
@@ -506,7 +506,7 @@ void MediaJob::requestTag(const QString &filename)
 {
     Tag t(filename);
     emit tag(t);
-    emit finished();
+    stop();
 }
 
 void MediaJob::setTag(const QString &filename, const Tag &tag)
@@ -514,14 +514,14 @@ void MediaJob::setTag(const QString &filename, const Tag &tag)
     // ### need to write the tag here
 
     emit tagWritten(filename);
-    emit finished();
+    stop();
 }
 
 void MediaJob::readLibrary()
 {
     createData();
     s_data->readLibrary(this);
-    emit finished();
+    stop();
 }
 
 void MediaJob::readTag(const QString &path, Tag& tag)
@@ -534,9 +534,6 @@ void MediaJob::readTag(const QString &path, Tag& tag)
 MediaLibraryFile::MediaLibraryFile(QObject *parent) :
     MediaLibrary(parent)
 {
-    connect(IO::instance(), SIGNAL(jobReady(IOJob*)), this, SLOT(jobReady(IOJob*)));
-    connect(IO::instance(), SIGNAL(jobFinished(IOJob*)), this, SLOT(jobFinished(IOJob*)));
-
     qRegisterMetaType<PathSet>("PathSet");
     qRegisterMetaType<Tag>("Tag");
     qRegisterMetaType<Artist>("Artist");
@@ -567,6 +564,14 @@ void MediaLibraryFile::init(QObject *parent)
 {
     if (!s_inst)
         s_inst = new MediaLibraryFile(parent);
+}
+
+void MediaLibraryFile::startJob(IOJob *job)
+{
+    connect(job, SIGNAL(started()), this, SLOT(jobStarted()));
+    connect(job, SIGNAL(finished()), this, SLOT(jobFinished()));
+
+    IO::instance()->startJob(job);
 }
 
 QStringList MediaLibraryFile::paths()
@@ -601,9 +606,7 @@ void MediaLibraryFile::incrementalUpdate()
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::UpdatePaths);
     job->setArg(QVariant::fromValue<PathSet>(toupdate));
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 
     m_updatedPaths += toupdate;
 }
@@ -615,18 +618,14 @@ void MediaLibraryFile::fullUpdate()
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::UpdatePaths);
     job->setArg(QVariant::fromValue<PathSet>(m_updatedPaths));
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 }
 
 void MediaLibraryFile::readLibrary()
 {
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::ReadLibrary);
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 }
 
 void MediaLibraryFile::requestMetaData(const QString &filename)
@@ -634,9 +633,7 @@ void MediaLibraryFile::requestMetaData(const QString &filename)
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::RequestTag);
     job->setArg(filename);
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 }
 
 void MediaLibraryFile::requestArtwork(const QString &filename)
@@ -652,9 +649,7 @@ void MediaLibraryFile::refresh()
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::Refresh);
     job->setArg(QVariant::fromValue<PathSet>(m_updatedPaths));
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 }
 
 void MediaLibraryFile::setTag(const QString &filename, const Tag &tag)
@@ -666,9 +661,7 @@ void MediaLibraryFile::setTag(const QString &filename, const Tag &tag)
     MediaJob* job = new MediaJob;
     job->setType(MediaJob::SetTag);
     job->setArg(list);
-
-    IO::instance()->startJob(job);
-    m_jobs.insert(job, IOPtr(job));
+    startJob(job);
 }
 
 void MediaLibraryFile::tagReceived(const Tag &t)
@@ -708,28 +701,32 @@ void MediaLibraryFile::processArtwork(const Tag &tag)
     emit artwork(QImage());
 }
 
-void MediaLibraryFile::jobReady(IOJob *job)
+void MediaLibraryFile::jobStarted()
 {
-    if (m_jobs.contains(job)) {
-        MediaJob* media = static_cast<MediaJob*>(job);
+    QObject* from = sender();
+    if (!from)
+        return;
 
-        connect(media, SIGNAL(tag(Tag)), this, SLOT(tagReceived(Tag)));
-        connect(media, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
-        connect(media, SIGNAL(trackRemoved(int)), this, SIGNAL(trackRemoved(int)));
-        connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));
-        connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
-        connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
-        connect(media, SIGNAL(databaseCleared()), this, SIGNAL(cleared()));
+    MediaJob* media = static_cast<MediaJob*>(from);
 
-        media->start();
-    }
+    connect(media, SIGNAL(tag(Tag)), this, SLOT(tagReceived(Tag)));
+    connect(media, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
+    connect(media, SIGNAL(trackRemoved(int)), this, SIGNAL(trackRemoved(int)));
+    connect(media, SIGNAL(tagWritten(QString)), this, SIGNAL(tagWritten(QString)));
+    connect(media, SIGNAL(updateStarted()), this, SIGNAL(updateStarted()));
+    connect(media, SIGNAL(updateFinished()), this, SIGNAL(updateFinished()));
+    connect(media, SIGNAL(databaseCleared()), this, SIGNAL(cleared()));
+
+    media->start();
 }
 
-void MediaLibraryFile::jobFinished(IOJob *job)
+void MediaLibraryFile::jobFinished()
 {
-    m_jobs.remove(job);
+    MediaJob* job = qobject_cast<MediaJob*>(sender());
+    if (!job)
+        return;
 
-    IOJob::deleteIfNeeded(job);
+    job->deleteLater();
 }
 
 QByteArray MediaLibraryFile::mimeType(const QString &filename) const
@@ -747,7 +744,7 @@ QByteArray MediaLibraryFile::mimeType(const QString &filename) const
     return QByteArray();
 }
 
-QIODevice* MediaLibraryFile::deviceForFilename(const QString &filename)
+AudioReader* MediaLibraryFile::readerForFilename(const QString &filename)
 {
     FileReader* reader = new FileReader;
     reader->setFilename(filename);
