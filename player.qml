@@ -539,6 +539,7 @@ Rectangle {
         State {
             name: "paused"
             PropertyChanges { target: playButton; image: "icons/play.svg" }
+            PropertyChanges { target: artworkContainer; opacity: 1 }
         },
         State {
             name: "stopped"
