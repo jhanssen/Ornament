@@ -56,7 +56,7 @@ void IOJob::stop()
 
 void IOJob::stopJob()
 {
-    Q_ASSERT(m_io->thread() == thread());
+    Q_ASSERT(m_io == thread());
 
     if (m_io)
         m_io->jobStopped(this);
@@ -223,6 +223,7 @@ void IO::deleteJobLater(IOJob *job)
 
 void IO::startJob(IOJob *job)
 {
+    job->moveToThread(this);
     QMetaObject::invokeMethod(this, "startJobIO", Q_ARG(IOJob*, job));
 }
 
