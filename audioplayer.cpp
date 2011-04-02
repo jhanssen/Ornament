@@ -45,6 +45,7 @@ QString AudioPlayer::filename() const
 void AudioPlayer::setFilename(const QString &filename)
 {
     m_filename = filename;
+    emit filenameChanged();
 }
 
 AudioDevice* AudioPlayer::audioDevice() const
@@ -118,9 +119,12 @@ void AudioPlayer::outputStateChanged(QAudio::State state)
         m_state = Paused;
         break;
     case QAudio::StoppedState:
-        if (m_codec->isOpen())
+        if (m_codec->isOpen()) {
             m_state = Stopped;
-        else
+
+            m_filename.clear();
+            emit filenameChanged();
+        } else
             m_state = Done;
         break;
     }

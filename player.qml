@@ -25,9 +25,9 @@ import MusicModel 1.0
 Rectangle {
     id: topLevel
 
-    property string artistName: ""
-    property string albumName: ""
-    property string songTitle: ""
+    property string artistName: musicModel.artistnameFromFilename(audioPlayer.filename)
+    property string albumName: musicModel.albumnameFromFilename(audioPlayer.filename)
+    property string songTitle: musicModel.tracknameFromFilename(audioPlayer.filename)
 
     SystemPalette { id: activePalette }
 
@@ -76,6 +76,7 @@ Rectangle {
 
     function playNext() {
         var cur = musicModel.positionFromFilename(audioPlayer.filename)
+        console.log("ahem! " + audioPlayer.filename + " - " + cur + " >>> " + musicModel.trackCount())
         if (cur !== -1 && cur + 1 < musicModel.trackCount()) {
             playFile(musicModel.filenameByPosition(cur + 1))
             return true
@@ -123,48 +124,26 @@ Rectangle {
 
     AudioPlayer {
         id: audioPlayer
+        windowTitle: musicModel.tracknameFromFilename(audioPlayer.filename)
 
         onStateChanged: {
             topLevel.songTitle = ""
 
             if (state === AudioPlayer.Playing) {
-                if (artworkContainer.opacity < 1)
-                    artworkFadeIn.start()
-
-                playButton.image = "icons/pause.svg"
+                topLevel.state = "playing"
 
                 var cur = musicModel.positionFromFilename(audioPlayer.filename)
                 if (cur !== -1)
                     list.currentIndex = cur
-
-                // ### this is not the best way of getting the current track name I'm sure
-                topLevel.artistName = musicModel.artistnameFromFilename(audioPlayer.filename)
-                topLevel.albumName = musicModel.albumnameFromFilename(audioPlayer.filename)
-                topLevel.songTitle = musicModel.tracknameFromFilename(audioPlayer.filename)
             } else if (state === AudioPlayer.Done) {
-                topLevel.artistName = ""
-                topLevel.albumName = ""
-                topLevel.songTitle = ""
-
-                if (!playNext() && artworkContainer.opacity > 0) {
-                    artworkFadeOut.start()
-                    playButton.image = "icons/play.svg"
-                }
-            } else {
-                if (state === AudioPlayer.Stopped) {
-                    topLevel.artistName = ""
-                    topLevel.albumName = ""
-                    topLevel.songTitle = ""
-
-                    if (artworkContainer.opacity > 0)
-                        artworkFadeOut.start()
-                }
-                playButton.image = "icons/play.svg"
+                if (!playNext())
+                    topLevel.state = "stopped"
+            } else if (state === AudioPlayer.Stopped) {
+                topLevel.state = "stopped"
+            } else if (state === AudioPlayer.Paused) {
+                topLevel.state = "paused"
             }
 
-            audioPlayer.windowTitle = topLevel.songTitle
-            statusAlbumText.text = topLevel.albumName
-            statusArtistText.text = topLevel.artistName
         }
 
         onPositionChanged: {
@@ -274,7 +253,6 @@ Rectangle {
         function updateArtwork() {
             updateSource = "image://artwork/" + audioPlayer.filename
             artworkChange.start()
-
         }
 
         Component.onCompleted: {
@@ -283,17 +261,13 @@ Rectangle {
 
         Image {
             id: artwork
-
             fillMode: Image.PreserveAspectCrop
-
             anchors.fill: parent
         }
 
-        PropertyAnimation { id: artworkFadeOut; target: artworkContainer; property: "opacity"; from: 1; to: 0; duration: 200 }
-        PropertyAnimation { id: artworkFadeIn; target: artworkContainer; property: "opacity"; from: 0; to: 1; duration: 200 }
         SequentialAnimation {
             id: artworkChange
-            PropertyAnimation { target: artworkContainer; property: "opacity"; from: 1; to : 0; duration: 200 }
+            PropertyAnimation { target: artworkContainer; property: "opacity"; from: artworkContainer.opacity; to : 0; duration: 200 }
             ScriptAction { script: { artwork.source = artworkContainer.updateSource } }
             PropertyAnimation { target: artworkContainer; property: "opacity"; from: 0; to : 1; duration: 200 }
         }
@@ -388,11 +362,7 @@ Rectangle {
                     script: {
                         list.currentIndex = -1
 
-                        var title
-
                         if (listWrapper.currentMouseButton === Qt.RightButton) {
-                            // ### a lot of the code for Qt.RightButton here is duplicated below. Needs a fix!
-
                             if (musicModel.currentAlbumId !== -1)
                                 musicModel.currentAlbumId = -1
                             else if (musicModel.currentArtistId !== -1)
@@ -518,6 +488,8 @@ Rectangle {
 
             horizontalAlignment: Text.AlignHCenter
             color: "#eeeeee"
+
+            text: topLevel.artistName
         }
         Text {
             id: statusAlbumText
@@ -531,6 +503,8 @@ Rectangle {
 
             horizontalAlignment: Text.AlignHCenter
             color: "#eeeeee"
+
+            text: topLevel.albumName
         }
         anchors.bottom: listWrapper.top
         anchors.left: listWrapper.left
@@ -556,5 +530,25 @@ Rectangle {
                 AnchorAnimation { duration: 200 }
             }
         ]
+    }
+
+    states: [
+        State {
+            name: "playing"
+            PropertyChanges { target: playButton; image: "icons/pause.svg" }
+            PropertyChanges { target: artworkContainer; opacity: 1 }
+        },
+        State {
+            name: "paused"
+            PropertyChanges { target: playButton; image: "icons/play.svg" }
+        },
+        State {
+            name: "stopped"
+            PropertyChanges { target: playButton; image: "icons/play.svg" }
+            PropertyChanges { target: artworkContainer; opacity: 0 }
+        }
+    ]
+    transitions: Transition {
+        PropertyAnimation { target: artworkContainer; property: "opacity"; duration: 200 }
     }
 }
