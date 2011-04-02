@@ -549,24 +549,4 @@ Rectangle {
     transitions: Transition {
         PropertyAnimation { target: artworkContainer; property: "opacity"; duration: 200 }
     }
-
-    states: [
-        State {
-            name: "playing"
-            PropertyChanges { target: playButton; image: "icons/pause.svg" }
-            PropertyChanges { target: artworkContainer; opacity: 1 }
-        },
-        State {
-            name: "paused"
-            PropertyChanges { target: playButton; image: "icons/play.svg" }
-        },
-        State {
-            name: "stopped"
-            PropertyChanges { target: playButton; image: "icons/play.svg" }
-            PropertyChanges { target: artworkContainer; opacity: 0 }
-        }
-    ]
-    transitions: Transition {
-        PropertyAnimation { target: artworkContainer; property: "opacity"; duration: 200 }
-    }
 }
