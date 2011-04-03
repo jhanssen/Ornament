@@ -26,6 +26,98 @@
 #include <QUrl>
 #include <QDebug>
 
+class MediaLibraryJob : public IOJob
+{
+    Q_OBJECT
+public:
+    enum Type { None, ReadLibrary, RequestArtwork, RequestMetaData };
+
+    MediaLibraryJob(MediaLibraryInterface* iface, QObject* parent = 0);
+
+    void setType(Type type);
+    void setArgument(const QVariant& arg);
+
+signals:
+    void artist(const Artist& a);
+    void artwork(const QImage& a);
+    void metaData(const Tag& t);
+
+private slots:
+    void startJob();
+
+private:
+    void readLibrary();
+    void requestArtwork(const QString& filename);
+    void requestMetaData(const QString& filename);
+
+private:
+    MediaLibraryInterface* m_iface;
+    Type m_type;
+    QVariant m_arg;
+};
+
+MediaLibraryJob::MediaLibraryJob(MediaLibraryInterface* iface, QObject *parent)
+    : IOJob(parent), m_iface(iface), m_type(None)
+{
+}
+
+void MediaLibraryJob::setType(Type type)
+{
+    m_type = type;
+}
+
+void MediaLibraryJob::setArgument(const QVariant &arg)
+{
+    m_arg = arg;
+}
+
+void MediaLibraryJob::startJob()
+{
+    switch (m_type) {
+    case ReadLibrary:
+        readLibrary();
+        break;
+    case RequestArtwork:
+        requestArtwork(m_arg.toString());
+        break;
+    case RequestMetaData:
+        requestMetaData(m_arg.toString());
+        break;
+    default:
+        break;
+    }
+}
+
+void MediaLibraryJob::readLibrary()
+{
+    if (!m_iface)
+        return;
+    Artist a;
+    bool ok = m_iface->readFirstArtist(&a);
+    while (ok) {
+        emit artist(a);
+        ok = m_iface->readNextArtist(&a);
+    }
+}
+
+void MediaLibraryJob::requestArtwork(const QString &filename)
+{
+    if (!m_iface)
+        return;
+    QImage a;
+    m_iface->readArtworkForTrack(filename, &a);
+    emit artwork(a);
+}
+
+void MediaLibraryJob::requestMetaData(const QString &filename)
+{
+    if (!m_iface)
+        return;
+    Tag t;
+    m_iface->readMetaDataForTrack(filename, &t);
+    emit metaData(t);
+}
+
 class MediaLibraryPrivate : public QObject
 {
     Q_OBJECT
@@ -81,6 +173,8 @@ MediaLibrary::MediaLibrary(QObject *parent)
     : QObject(parent), m_priv(new MediaLibraryPrivate(this))
 {
     m_priv->queryInterfaces();
+
+    qRegisterMetaType<Artist>("Artist");
 }
 
 MediaLibrary::~MediaLibrary()
@@ -100,32 +194,37 @@ MediaLibrary* MediaLibrary::instance()
 
 void MediaLibrary::readLibrary()
 {
-    if (!m_priv->iface)
-        return;
-    Artist a;
-    bool ok = m_priv->iface->readFirstArtist(&a);
-    while (ok) {
-        emit artist(a);
-        ok = m_priv->iface->readNextArtist(&a);
-    }
+    MediaLibraryJob* job = new MediaLibraryJob(m_priv->iface);
+    job->setType(MediaLibraryJob::ReadLibrary);
+
+    connect(job, SIGNAL(started()), job, SLOT(startJob()));
+    connect(job, SIGNAL(finished()), job, SLOT(deleteLater()));
+    connect(job, SIGNAL(artist(Artist)), this, SIGNAL(artist(Artist)));
+    IO::instance()->startJob(job);
 }
 
 void MediaLibrary::requestArtwork(const QString &filename)
 {
-    if (!m_priv->iface)
-        return;
-    QImage a;
-    m_priv->iface->readArtworkForTrack(filename, &a);
-    emit artwork(a);
+    MediaLibraryJob* job = new MediaLibraryJob(m_priv->iface);
+    job->setType(MediaLibraryJob::RequestArtwork);
+    job->setArgument(filename);
+
+    connect(job, SIGNAL(started()), job, SLOT(startJob()));
+    connect(job, SIGNAL(finished()), job, SLOT(deleteLater()));
+    connect(job, SIGNAL(artwork(QImage)), this, SIGNAL(artwork(QImage)));
+    IO::instance()->startJob(job);
 }
 
 void MediaLibrary::requestMetaData(const QString &filename)
 {
-    if (!m_priv->iface)
-        return;
-    Tag t;
-    m_priv->iface->readMetaDataForTrack(filename, &t);
-    emit metaData(t);
+    MediaLibraryJob* job = new MediaLibraryJob(m_priv->iface);
+    job->setType(MediaLibraryJob::RequestMetaData);
+    job->setArgument(filename);
+
+    connect(job, SIGNAL(started()), job, SLOT(startJob()));
+    connect(job, SIGNAL(finished()), job, SLOT(deleteLater()));
+    connect(job, SIGNAL(metaData(Tag)), this, SIGNAL(metaData(Tag)));
+    IO::instance()->startJob(job);
 }
 
 MediaReader* MediaLibrary::readerForFilename(const QString &filename)

@@ -63,10 +63,13 @@ class MediaLibraryInterface
 public:
     virtual ~MediaLibraryInterface() {}
 
+    // These are executed in the IO thread
     virtual bool readFirstArtist(Artist* artist) = 0;
     virtual bool readNextArtist(Artist* artist) = 0;
     virtual void readArtworkForTrack(const QString& filename, QImage* image) = 0;
     virtual void readMetaDataForTrack(const QString& filename, Tag* tag) = 0;
+
+    // These are executed in the thread that MediaLibrary lives in
     virtual MediaReaderInterface* mediaReaderForTrack(const QString& filename) = 0;
     virtual QByteArray mimeTypeForTrack(const QString& filename) = 0;
 };
