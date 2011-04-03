@@ -17,7 +17,7 @@
 */
 
 #include "codecdevice.h"
-#include "audioreader.h"
+#include "mediareader.h"
 #include "codecs/codec.h"
 #include <QApplication>
 #include <QDebug>
@@ -42,7 +42,7 @@ bool CodecDevice::isSequential() const
     return true;
 }
 
-void CodecDevice::setInputReader(AudioReader *input)
+void CodecDevice::setInputReader(MediaReader *input)
 {
     m_input = input;
 }

@@ -19,18 +19,22 @@
 #ifndef S3READER_H
 #define S3READER_H
 
-#include "audioreader.h"
+#include <QIODevice>
+#include <QtPlugin>
 #include "buffer.h"
 #include "io.h"
 
-class S3ReaderJob;
+class QThread;
+class MediaLibrary;
+class MediaReaderJob;
+class MediaReaderInterface;
 
-class S3Reader : public AudioReader
+class MediaReader : public QIODevice
 {
     Q_OBJECT
 public:
-    S3Reader(QObject *parent = 0);
-    ~S3Reader();
+    MediaReader(MediaReaderInterface* interface, QObject *parent = 0);
+    ~MediaReader();
 
     void setFilename(const QString& filename);
 
@@ -59,14 +63,39 @@ private slots:
     void readerStarving();
 
 private:
+    void dataCallback();
+
+private:
     QString m_filename;
     Buffer m_buffer;
 
-    S3ReaderJob* m_reader;
+    MediaReaderJob* m_reader;
+    MediaReaderInterface* m_iface;
 
     bool m_atend;
 
     bool m_requestedData;
+
+    friend class MediaLibrary;
+};
+
+typedef void (MediaReader::*MediaReaderCallback)();
+
+class MediaReaderInterface
+{
+public:
+    virtual ~MediaReaderInterface() {}
+
+    virtual bool open() = 0;
+
+    virtual bool atEnd() const = 0;
+    virtual QByteArray readData(qint64 length) = 0;
+
+    virtual void pause() = 0;
+    virtual void resume(qint64 position) = 0;
+
+    virtual void setTargetThread(QThread* thread) = 0;
+    virtual void setDataCallback(MediaReader* reader, MediaReaderCallback callback) = 0;
 };
 
 #endif // S3READER_H

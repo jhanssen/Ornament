@@ -16,14 +16,181 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "medialibrary_s3.h"
-#include "s3reader.h"
+#include "s3.h"
 #include "awsconfig.h"
 #include <libs3.h>
-#include <QTimer>
-#include <QStringList>
 #include <QUrl>
+#include <QStringList>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QSslError>
 #include <QDebug>
+
+#define S3_MIN_BUFFER_SIZE (8192 * 10)
+
+class MediaReaderS3Private : public QObject
+{
+    Q_OBJECT
+public:
+    MediaReaderS3Private(QObject* parent = 0);
+    ~MediaReaderS3Private();
+
+    bool open();
+
+    QString m_filename;
+    bool m_finished;
+    bool m_aborted;
+    int m_position;
+
+    QNetworkAccessManager* m_manager;
+    QNetworkReply* m_reply;
+
+    S3BucketContext* m_context;
+
+    MediaReader* m_reader;
+    MediaReaderCallback m_callback;
+
+private slots:
+    void replyData();
+    void replyFinished();
+    void replyError(QNetworkReply::NetworkError errorType);
+    void replySslErrors(const QList<QSslError>& errors);
+};
+
+MediaReaderS3Private::MediaReaderS3Private(QObject *parent)
+    : QObject(parent), m_finished(false), m_aborted(false), m_position(0), m_manager(0), m_reply(0), m_reader(0)
+{
+    m_context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
+    m_context->accessKeyId = AwsConfig::accessKey();
+    m_context->secretAccessKey = AwsConfig::secretKey();
+    m_context->bucketName = AwsConfig::bucket();
+    m_context->protocol = S3ProtocolHTTPS;
+    m_context->uriStyle = S3UriStyleVirtualHost;
+}
+
+MediaReaderS3Private::~MediaReaderS3Private()
+{
+    free(m_context);
+}
+
+bool MediaReaderS3Private::open()
+{
+    if (!m_manager) {
+        m_manager = new QNetworkAccessManager(this);
+    }
+
+    char query[S3_MAX_AUTHENTICATED_QUERY_STRING_SIZE];
+
+    QByteArray key = QUrl::toPercentEncoding(m_filename, "/_");
+    S3Status status = S3_generate_authenticated_query_string(query, m_context, key.constData(), -1, 0);
+    if (status != S3StatusOK) {
+        qDebug() << "error when generating query string for" << key << "," << status;
+        m_finished = true;
+        return false;
+    }
+
+    QUrl url;
+    url.setEncodedUrl(query, QUrl::TolerantMode);
+
+    QNetworkRequest req(url);
+    if (m_position > 0) {
+        qDebug() << "s3 resuming at" << m_position;
+        req.setRawHeader("Range", "bytes=" + QByteArray::number(m_position) + "-");
+    }
+
+    qDebug() << "s3 making request";
+    m_reply = m_manager->get(req);
+    m_reply->setReadBufferSize(S3_MIN_BUFFER_SIZE);
+
+    m_finished = false;
+    m_aborted = false;
+
+    connect(m_reply, SIGNAL(readyRead()), this, SLOT(replyData()));
+    connect(m_reply, SIGNAL(finished()), this, SLOT(replyFinished()));
+    connect(m_reply, SIGNAL(error(QNetworkReply::NetworkError)), this, SLOT(replyError(QNetworkReply::NetworkError)));
+    connect(m_reply, SIGNAL(sslErrors(QList<QSslError>)), this, SLOT(replySslErrors(QList<QSslError>)));
+
+    return true;
+}
+
+void MediaReaderS3Private::replyData()
+{
+    if (m_reader)
+        (m_reader->*m_callback)();
+}
+
+void MediaReaderS3Private::replyFinished()
+{
+    if (!m_aborted && sender() == m_reply)
+        m_finished = true;
+}
+
+void MediaReaderS3Private::replyError(QNetworkReply::NetworkError errorType)
+{
+    qDebug() << "s3 reply error" << errorType;
+}
+
+void MediaReaderS3Private::replySslErrors(const QList<QSslError>& errors)
+{
+    foreach(const QSslError& error, errors) {
+        qDebug() << "reply ssl error" << error.errorString();
+    }
+}
+
+MediaReaderS3::MediaReaderS3(const QString& filename)
+    : m_priv(new MediaReaderS3Private)
+{
+    m_priv->m_filename = filename;
+}
+
+MediaReaderS3::~MediaReaderS3()
+{
+    delete m_priv;
+}
+
+bool MediaReaderS3::open()
+{
+    return m_priv->open();
+}
+
+bool MediaReaderS3::atEnd() const
+{
+    return (m_priv->m_finished && (!m_priv->m_reply || !m_priv->m_reply->bytesAvailable()));
+}
+
+QByteArray MediaReaderS3::readData(qint64 length)
+{
+    if (!m_priv->m_reply)
+        return QByteArray();
+
+    return m_priv->m_reply->read(length);
+}
+
+void MediaReaderS3::pause()
+{
+    if (!m_priv->m_reply)
+        return;
+    m_priv->m_aborted = true;
+    m_priv->m_reply->abort();
+}
+
+void MediaReaderS3::resume(qint64 position)
+{
+    m_priv->m_position = position;
+    m_priv->open();
+}
+
+void MediaReaderS3::setTargetThread(QThread *thread)
+{
+    if (m_priv->thread() == QThread::currentThread() && m_priv->thread() != thread)
+        m_priv->moveToThread(thread);
+}
+
+void MediaReaderS3::setDataCallback(MediaReader *reader, MediaReaderCallback callback)
+{
+    m_priv->m_reader = reader;
+    m_priv->m_callback = callback;
+}
 
 class MediaLibraryS3Private : public QObject
 {
@@ -33,15 +200,13 @@ public:
     ~MediaLibraryS3Private();
 
     void parseContent(const S3ListBucketContent& content);
-    void requestArtwork(const QString& filename);
-
-    void emitComplete();
-    void emitArtwork();
+    QImage requestArtwork(const QString& filename);
 
     S3BucketContext* m_context;
     S3ListBucketHandler* m_listHandler;
 
     QHash<int, Artist> m_artists;
+    QHash<int, Artist>::const_iterator m_artistsIterator;
 
     QHash<QString, int> m_artistIds;
     QHash<QString, int> m_albumIds;
@@ -60,15 +225,10 @@ public:
 
     MediaLibraryS3* q;
 
-public slots:
-    void processTracks();
-
 signals:
     void complete();
     void artwork(const QImage& image);
 };
-
-#include "medialibrary_s3.moc"
 
 static S3Status dataCallback(int bufferSize, const char* buffer, void* callbackData)
 {
@@ -105,6 +265,7 @@ static S3Status listBucketCallback(int isTruncated, const char* nextmarker, int 
 static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails, void* callbackData)
 {
     Q_UNUSED(status)
+    Q_UNUSED(callbackData)
 
     if (errorDetails) {
         if (errorDetails->message)
@@ -114,12 +275,6 @@ static void completeCallback(S3Status status, const S3ErrorDetails* errorDetails
         if (errorDetails->furtherDetails)
             qDebug() << errorDetails->furtherDetails;
     }
-
-    MediaLibraryS3Private* priv = reinterpret_cast<MediaLibraryS3Private*>(callbackData);
-    if (priv->m_mode == MediaLibraryS3Private::List)
-        priv->emitComplete();
-    else if (priv->m_mode == MediaLibraryS3Private::Artwork)
-        priv->emitArtwork();
 }
 
 static S3Status propertiesCallback(const S3ResponseProperties* properties, void* callbackData)
@@ -131,11 +286,14 @@ static S3Status propertiesCallback(const S3ResponseProperties* properties, void*
 }
 
 MediaLibraryS3Private::MediaLibraryS3Private(MediaLibraryS3 *parent)
-    : QObject(parent), m_listHandler(0), m_clearmarker(false), m_mode(None), m_idcount(1)
+    : QObject(parent), m_context(0), m_listHandler(0), m_clearmarker(false), m_mode(None), m_idcount(1)
 {
     q = parent;
 
     S3_initialize(NULL, S3_INIT_ALL);
+
+    if (!AwsConfig::init())
+        return;
 
     m_context = (S3BucketContext*)malloc(sizeof(S3BucketContext));
     m_context->accessKeyId = AwsConfig::accessKey();
@@ -147,13 +305,17 @@ MediaLibraryS3Private::MediaLibraryS3Private(MediaLibraryS3 *parent)
 
 MediaLibraryS3Private::~MediaLibraryS3Private()
 {
-    free(m_context);
+    if (m_context)
+        free(m_context);
 
     S3_deinitialize();
 }
 
-void MediaLibraryS3Private::requestArtwork(const QString &filename)
+QImage MediaLibraryS3Private::requestArtwork(const QString &filename)
 {
+    if (!m_context)
+        return QImage();
+
     m_mode = Artwork;
 
     // ### this should run in the IO thread though might not be able to since S3Reader might be blocking it
@@ -166,22 +328,10 @@ void MediaLibraryS3Private::requestArtwork(const QString &filename)
     S3_get_object(m_context, key.constData(), 0, 0, 0, 0, &objectHandler, this);
 
     m_mode = None;
-}
 
-void MediaLibraryS3Private::emitComplete()
-{
-    emit complete();
-}
-
-void MediaLibraryS3Private::emitArtwork()
-{
     QImage image = QImage::fromData(m_artwork);
     m_artwork.clear();
-
-    if (image.isNull())
-        return;
-
-    emit artwork(image);
+    return image;
 }
 
 static bool parseTrack(Track* track, const QString& artist, const QString& album, const QString& trackname)
@@ -266,7 +416,7 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
     const QByteArray& trackData = items.at(2);
     QString track = QUrl::fromPercentEncoding(trackData);
 
-    QByteArray mime = MediaLibrary::instance()->mimeType(track);
+    QByteArray mime = q->mimeTypeForTrack(track);
     if (mime.startsWith("image/")
         && (!m_albumart.contains(albumid)) || (track.toLower().startsWith("folder"))) {
         //qDebug() << "album art for" << (artist + "/" + album) << "is" << (artist + "/" + album + "/" + track);
@@ -293,113 +443,98 @@ void MediaLibraryS3Private::parseContent(const S3ListBucketContent &content)
     }
 }
 
-void MediaLibraryS3Private::processTracks()
+#include "s3.moc"
+
+MediaLibraryS3::MediaLibraryS3(QObject* parent)
+    : QObject(parent), m_priv(new MediaLibraryS3Private(this))
 {
-    foreach(const Artist& a, m_artists) {
-        qDebug() << "emitting artist" << a.name;
-        foreach(const Album& album, a.albums) {
-            qDebug() << "    " << album.name;
-            foreach(const Track& track, album.tracks) {
-                qDebug() << "        " << track.name << track.filename;
-            }
-        }
-
-        emit q->artist(a);
-    }
-
-    m_mode = MediaLibraryS3Private::None;
-
-    m_artistIds.clear();
-    m_albumIds.clear();
-}
-
-MediaLibraryS3::MediaLibraryS3(QObject *parent)
-    : MediaLibrary(parent), priv(new MediaLibraryS3Private(this))
-{
-    connect(priv, SIGNAL(complete()), this, SLOT(S3complete()));
-    connect(priv, SIGNAL(artwork(QImage)), this, SIGNAL(artwork(QImage)));
 }
 
 MediaLibraryS3::~MediaLibraryS3()
 {
 }
 
-void MediaLibraryS3::init(QObject *parent)
-{
-    if (!s_inst)
-        s_inst = new MediaLibraryS3(parent);
-}
-
 void MediaLibraryS3::readS3()
 {
-    if (!priv->m_listHandler) {
-        priv->m_listHandler = (S3ListBucketHandler*)malloc(sizeof(S3ListBucketHandler));
+    if (!m_priv->m_context)
+        return;
+
+    m_priv->m_mode = MediaLibraryS3Private::List;
+
+    if (!m_priv->m_listHandler) {
+        m_priv->m_listHandler = (S3ListBucketHandler*)malloc(sizeof(S3ListBucketHandler));
 
         S3ResponseHandler responseHandler;
         responseHandler.completeCallback = completeCallback;
         responseHandler.propertiesCallback = propertiesCallback;
 
-        priv->m_listHandler->responseHandler = responseHandler;
-        priv->m_listHandler->listBucketCallback = listBucketCallback;
+        m_priv->m_listHandler->responseHandler = responseHandler;
+        m_priv->m_listHandler->listBucketCallback = listBucketCallback;
     }
 
-    if (priv->m_nextmarker.isEmpty()) {
-        priv->m_mode = MediaLibraryS3Private::List;
-        S3_list_bucket(priv->m_context, "", 0, "", 1000, 0, priv->m_listHandler, priv);
+    if (m_priv->m_nextmarker.isEmpty()) {
+        m_priv->m_mode = MediaLibraryS3Private::List;
+        qDebug() << "listing" << m_priv->m_context << m_priv->m_listHandler;
+        S3_list_bucket(m_priv->m_context, "", 0, "", 1000, 0, m_priv->m_listHandler, m_priv);
     } else {
-        priv->m_clearmarker = true;
-        S3_list_bucket(priv->m_context, "", priv->m_nextmarker.constData(), "", 1000, 0, priv->m_listHandler, priv);
+        m_priv->m_clearmarker = true;
+        S3_list_bucket(m_priv->m_context, "", m_priv->m_nextmarker.constData(), "", 1000, 0, m_priv->m_listHandler, m_priv);
     }
+
+    m_priv->m_mode = MediaLibraryS3Private::None;
 }
 
-void MediaLibraryS3::readLibrary()
+bool MediaLibraryS3::readFirstArtist(Artist *artist)
 {
-    priv->m_nextmarker.clear();
-    readS3();
-}
-
-void MediaLibraryS3::S3complete()
-{
-    if (priv->m_mode == MediaLibraryS3Private::List) {
-        if (priv->m_clearmarker) {
-            priv->m_nextmarker.clear();
-            priv->m_clearmarker = false;
-        }
-        if (!priv->m_nextmarker.isEmpty())
-            readS3();
-        else {
-            priv->m_idcount = 1;
-            QTimer::singleShot(0, priv, SLOT(processTracks()));
-        }
+    if (m_priv->m_artists.isEmpty()) {
+        readS3();
+        m_priv->m_artistIds.clear();
+        m_priv->m_albumIds.clear();
     }
+
+    m_priv->m_artistsIterator = m_priv->m_artists.begin();
+    if (m_priv->m_artistsIterator == m_priv->m_artists.end())
+        return false;
+
+    *artist = m_priv->m_artistsIterator.value();
+    return true;
 }
 
-void MediaLibraryS3::requestArtwork(const QString &filename)
+bool MediaLibraryS3::readNextArtist(Artist *artist)
 {
-    if (!priv->m_trackIds.contains(filename))
+    if (m_priv->m_artistsIterator == m_priv->m_artists.end())
+        return false;
+
+    ++m_priv->m_artistsIterator;
+
+    if (m_priv->m_artistsIterator == m_priv->m_artists.end())
+        return false;
+
+    *artist = m_priv->m_artistsIterator.value();
+    return true;
+}
+
+void MediaLibraryS3::readArtworkForTrack(const QString &filename, QImage *image)
+{
+    if (!m_priv->m_trackIds.contains(filename))
         return;
-    int albumid = priv->m_albumToTrack.value(priv->m_trackIds.value(filename));
-    priv->requestArtwork(priv->m_albumart.value(albumid));
+    int albumid = m_priv->m_albumToTrack.value(m_priv->m_trackIds.value(filename));
+    QImage img = m_priv->requestArtwork(m_priv->m_albumart.value(albumid));
+    *image = img;
 }
 
-void MediaLibraryS3::requestMetaData(const QString &filename)
+void MediaLibraryS3::readMetaDataForTrack(const QString &filename, Tag *tag)
 {
     Q_UNUSED(filename)
+    *tag = Tag();
 }
 
-void MediaLibraryS3::setSettings(QSettings *settings)
+MediaReaderInterface* MediaLibraryS3::mediaReaderForTrack(const QString &filename)
 {
-    MediaLibrary::setSettings(settings);
+    return new MediaReaderS3(filename);
 }
 
-AudioReader* MediaLibraryS3::readerForFilename(const QString &filename)
-{
-    S3Reader* s3reader = new S3Reader;
-    s3reader->setFilename(filename);
-    return s3reader;
-}
-
-QByteArray MediaLibraryS3::mimeType(const QString &filename) const
+QByteArray MediaLibraryS3::mimeTypeForTrack(const QString &filename)
 {
     if (filename.isEmpty())
         return QByteArray();
@@ -417,3 +552,5 @@ QByteArray MediaLibraryS3::mimeType(const QString &filename) const
 
     return QByteArray();
 }
+
+Q_EXPORT_PLUGIN2(s3, MediaLibraryS3)

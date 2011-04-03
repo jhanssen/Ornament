@@ -21,8 +21,7 @@
 #include "musicmodel.h"
 #include "io.h"
 #include "codecs/codecs.h"
-#include "medialibrary_file.h"
-#include "medialibrary_s3.h"
+#include "medialibrary.h"
 #include "awsconfig.h"
 
 #include <QApplication>
@@ -55,12 +54,7 @@ int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
 
-    bool s3 = false;
-    for (int i = 1; i < argc; ++i) {
-        if (qstrcmp(argv[i], "-s3") == 0)
-            s3 = true;
-    }
-
+    bool s3 = true;
     if (s3 && !AwsConfig::init()) {
         qDebug() << "unable to read aws config from ~/.player-aws";
         return 1;
@@ -68,18 +62,12 @@ int main(int argc, char** argv)
 
     IO::init();
     Codecs::init();
-    if (s3)
-        MediaLibraryS3::init();
-    else
-        MediaLibraryFile::init();
-
-    QSettings settings(QLatin1String("hepp"), QLatin1String("player"));
-    MediaLibrary::instance()->setSettings(&settings);
+    MediaLibrary::init();
 
     qmlRegisterType<AudioDevice>("AudioDevice", 1, 0, "AudioDevice");
     qmlRegisterType<AudioPlayer>("AudioPlayer", 1, 0, "AudioPlayer");
     qmlRegisterType<MusicModel>("MusicModel", 1, 0, "MusicModel");
-    qmlRegisterType<MediaModel>("MediaModel", 1, 0, "MediaModel");
+    //qmlRegisterType<MediaModel>("MediaModel", 1, 0, "MediaModel");
 
     MainView view(QUrl::fromLocalFile("player.qml"));
 

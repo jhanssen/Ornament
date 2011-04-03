@@ -19,7 +19,7 @@
 import QtQuick 1.0
 import AudioDevice 1.0
 import AudioPlayer 1.0
-import MediaModel 1.0
+//import MediaModel 1.0
 import MusicModel 1.0
 
 Rectangle {
@@ -100,6 +100,7 @@ Rectangle {
         }
     }
 
+    /*
     function addMediaItem() {
         mediaModel.addRow()
     }
@@ -112,6 +113,7 @@ Rectangle {
     function refreshMediaList() {
         mediaModel.refreshMedia()
     }
+    */
 
     width: 350
     height: 300
@@ -151,9 +153,11 @@ Rectangle {
         }
     }
 
+    /*
     MediaModel {
         id: mediaModel
     }
+    */
 
     MusicModel {
         id: musicModel
@@ -306,7 +310,7 @@ Rectangle {
                     from: "music"; to: "media"
                     SequentialAnimation {
                         PropertyAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
-                        ScriptAction { script: { list.model = mediaModel; list.delegate = mediaDelegate } }
+                        //ScriptAction { script: { list.model = mediaModel; list.delegate = mediaDelegate } }
                         PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
                     }
                 },
@@ -314,7 +318,7 @@ Rectangle {
                     from: "media"; to: "music"
                     SequentialAnimation {
                         PropertyAnimation { target: listWrapper; property: "opacity"; from: 0.7; to: 0; duration: 200 }
-                        ScriptAction { script: { list.delegate = musicDelegate; list.model = musicModel } }
+                        //ScriptAction { script: { list.delegate = musicDelegate; list.model = musicModel } }
                         PropertyAnimation { target: listWrapper; property: "opacity"; from: 0; to: 0.7; duration: 200 }
                     }
                 }
@@ -466,7 +470,7 @@ Rectangle {
                         }
 
                         onClicked: {
-                            mediaModel.setPathInRow(mediaindex)
+                            //mediaModel.setPathInRow(mediaindex)
                         }
                     }
                 }

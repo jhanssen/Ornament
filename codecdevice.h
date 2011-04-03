@@ -23,7 +23,7 @@
 #include <QLinkedList>
 #include "buffer.h"
 
-class AudioReader;
+class MediaReader;
 class Codec;
 
 class CodecDevice : public QIODevice
@@ -36,7 +36,7 @@ public:
     bool isSequential() const;
     qint64 bytesAvailable() const;
 
-    void setInputReader(AudioReader* input);
+    void setInputReader(MediaReader* input);
     void setCodec(Codec* codec);
 
     bool open(OpenMode mode);
@@ -55,7 +55,7 @@ private:
     bool fillBuffer();
 
 private:
-    AudioReader* m_input;
+    MediaReader* m_input;
     Codec* m_codec;
 
     Buffer m_decoded;

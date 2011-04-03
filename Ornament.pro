@@ -24,14 +24,10 @@ HEADERS += codecs/codecs.h \
     audioplayer.h \
     musicmodel.h \
     io.h \
-    filereader.h \
     buffer.h \
-    medialibrary_file.h \
     medialibrary.h \
-    medialibrary_s3.h \
-    s3reader.h \
     awsconfig.h \
-    audioreader.h
+    mediareader.h
 
 SOURCES += main.cpp \
     codecs/codecs.cpp \
@@ -43,16 +39,12 @@ SOURCES += main.cpp \
     audioplayer.cpp \
     musicmodel.cpp \
     io.cpp \
-    filereader.cpp \
     buffer.cpp \
-    medialibrary_file.cpp \
     medialibrary.cpp \
-    medialibrary_s3.cpp \
-    s3reader.cpp \
     awsconfig.cpp \
-    audioreader.cpp
+    mediareader.cpp
 
-LIBS += libs3/build/lib/libs3.a -lmad -ltag -lcurl -lxml2
+LIBS += -lmad -ltag
 
 OTHER_FILES += \
     player.qml \

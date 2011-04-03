@@ -20,13 +20,15 @@
 #define MEDIALIBRARY_H
 
 #include <QObject>
-#include <QString>
 #include <QHash>
+#include <QString>
 #include <QImage>
+#include <QtPlugin>
 #include "tag.h"
 
-class AudioReader;
-class QSettings;
+class MediaReader;
+class MediaReaderInterface;
+class MediaLibraryPrivate;
 
 struct Album;
 struct Track;
@@ -56,36 +58,52 @@ struct Track
     int duration;
 };
 
+class MediaLibraryInterface
+{
+public:
+    virtual ~MediaLibraryInterface() {}
+
+    virtual bool readFirstArtist(Artist* artist) = 0;
+    virtual bool readNextArtist(Artist* artist) = 0;
+    virtual void readArtworkForTrack(const QString& filename, QImage* image) = 0;
+    virtual void readMetaDataForTrack(const QString& filename, Tag* tag) = 0;
+    virtual MediaReaderInterface* mediaReaderForTrack(const QString& filename) = 0;
+    virtual QByteArray mimeTypeForTrack(const QString& filename) = 0;
+};
+
+Q_DECLARE_INTERFACE(MediaLibraryInterface, "Ornament.MediaLibraryInterface")
+
 class MediaLibrary : public QObject
 {
     Q_OBJECT
 public:
+    static void init(QObject* parent = 0);
     static MediaLibrary* instance();
 
-    virtual void readLibrary() = 0;
+    ~MediaLibrary();
 
-    virtual void requestArtwork(const QString& filename) = 0;
-    virtual void requestMetaData(const QString& filename) = 0;
+    void readLibrary();
 
-    virtual AudioReader* readerForFilename(const QString& filename) = 0;
-    virtual QByteArray mimeType(const QString& filename) const = 0;
+    void requestArtwork(const QString& filename);
+    void requestMetaData(const QString& filename);
 
-    virtual void setSettings(QSettings* settings);
+    MediaReader* readerForFilename(const QString &filename);
+    QByteArray mimeType(const QString& filename) const;
 
 signals:
     void artist(const Artist& artist);
     void artwork(const QImage& image);
     void metaData(const Tag& tag);
-
     void trackRemoved(int trackid);
     void cleared();
 
-protected:
-    MediaLibrary(QObject *parent = 0);
+private:
+    friend class MediaLibraryPrivate;
 
+    MediaLibrary(QObject* parent = 0);
+
+    MediaLibraryPrivate* m_priv;
     static MediaLibrary* s_inst;
-
-    QSettings* m_settings;
 };
 
-#endif // MEDIALIBRARY_H
+#endif // MEDIALIBRARY_S3_H

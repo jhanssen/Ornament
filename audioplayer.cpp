@@ -18,7 +18,8 @@
 
 #include "audioplayer.h"
 #include "codecdevice.h"
-#include "filereader.h"
+#include "medialibrary.h"
+#include "mediareader.h"
 #include "codecs/codec.h"
 #include "codecs/codecs.h"
 #include "medialibrary.h"
@@ -163,8 +164,8 @@ void AudioPlayer::play()
         if (!codec)
             return;
 
-        AudioReader* reader = MediaLibrary::instance()->readerForFilename(m_filename);
-        if (!reader->open(FileReader::ReadOnly)) {
+        MediaReader* reader = MediaLibrary::instance()->readerForFilename(m_filename);
+        if (!reader->open(MediaReader::ReadOnly)) {
             delete codec;
             delete reader;
 
