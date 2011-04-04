@@ -5,7 +5,7 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . .. ../medialibraries/s3 ../libs3/inc
+INCLUDEPATH += . ../src ../medialibraries/s3 ../3rdparty/libs3/inc
 
 mac {
     INCLUDEPATH += /opt/local/include
@@ -13,13 +13,13 @@ mac {
 }
 
 # Input
-SOURCES += main.cpp ../tag.cpp ../medialibraries/s3/awsconfig.cpp \
+SOURCES += main.cpp ../src/tag.cpp ../medialibraries/s3/awsconfig.cpp \
     updater.cpp \
     trackduration.cpp
-HEADERS += ../tag.h ../medialibraries/s3/awsconfig.h \
+HEADERS += ../src/tag.h ../medialibraries/s3/awsconfig.h \
     updater.h \
     trackduration.h
 
 DEFINES += TAG_PUBLIC_CTOR
 
-LIBS += ../libs3/build/lib/libs3.a -lmad -ltag -lcurl -lxml2
+LIBS += ../3rdparty/libs3.a -lmad -ltag -lcurl -lxml2

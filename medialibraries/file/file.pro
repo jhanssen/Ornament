@@ -5,7 +5,7 @@
 TEMPLATE = lib
 TARGET = file
 DEPENDPATH += .
-INCLUDEPATH += . ../..
+INCLUDEPATH += . ../../src
 DESTDIR = ..
 
 CONFIG += plugin
@@ -20,7 +20,7 @@ QT += sql
 DEFINES += TAG_PUBLIC_CTOR
 
 # Input
-HEADERS += file.h ../../tag.h
-SOURCES += file.cpp ../../tag.cpp
+HEADERS += file.h ../../src/tag.h
+SOURCES += file.cpp ../../src/tag.cpp
 
 LIBS += -ltag

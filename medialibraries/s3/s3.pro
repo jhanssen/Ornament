@@ -5,7 +5,7 @@
 TEMPLATE = lib
 TARGET = s3
 DEPENDPATH += .
-INCLUDEPATH += . ../.. ../../libs3/inc
+INCLUDEPATH += . ../../src ../../3rdparty/libs3/inc
 DESTDIR = ..
 
 CONFIG += plugin
@@ -18,7 +18,7 @@ mac {
 }
 
 # Input
-HEADERS += s3.h awsconfig.h ../../tag.h
-SOURCES += s3.cpp awsconfig.cpp ../../tag.cpp
+HEADERS += s3.h awsconfig.h ../../src/tag.h
+SOURCES += s3.cpp awsconfig.cpp ../../src/tag.cpp
 
-LIBS += ../../libs3/build/lib/libs3.a -lxml2 -lcurl -ltag
+LIBS += ../../3rdparty/libs3.a -lxml2 -lcurl -ltag
