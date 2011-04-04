@@ -100,14 +100,16 @@ int AudioFileInformationMad::length() const
                 if (!MAD_RECOVERABLE(infostream.error))
                     break;
                 if (infostream.error == MAD_ERROR_LOSTSYNC) {
-                    TagLib::ID3v2::Header header;
-                    uint size = (uint)(infostream.bufend - infostream.this_frame);
-                    if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
-                        uint tagsize = header.tagSize();
-                        if (tagsize > 0) {
-                            mad_stream_skip(&infostream, qMin(tagsize, size));
-                            continue;
+                    if (qstrncmp(reinterpret_cast<const char*>(infostream.this_frame), "ID3", 3) == 0) {
+                        TagLib::ID3v2::Header header;
+                        uint size = (uint)(infostream.bufend - infostream.this_frame);
+                        if (size >= header.size()) {
+                            header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(infostream.this_frame), size));
+                            uint tagsize = header.completeTagSize();
+                            if (tagsize > 0) {
+                                mad_stream_skip(&infostream, tagsize);
+                                continue;
+                            }
                         }
                     }
                 }
@@ -274,13 +276,17 @@ CodecMad::Status CodecMad::decode()
         if (mad_header_decode(&m_frame.header, &m_stream)) {
             if (MAD_RECOVERABLE(m_stream.error)) {
                 if (m_stream.error == MAD_ERROR_LOSTSYNC) {
-                    TagLib::ID3v2::Header header;
-                    uint size = (uint)(m_stream.bufend - m_stream.this_frame);
-                    if (size >= header.size()) {
-                        header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
-                        uint tagsize = header.tagSize();
-                        if (tagsize > 0)
-                            mad_stream_skip(&m_stream, qMin(tagsize, size));
+                    if (qstrncmp(reinterpret_cast<const char*>(m_stream.this_frame), "ID3", 3) == 0) {
+                        TagLib::ID3v2::Header header;
+                        uint size = (uint)(m_stream.bufend - m_stream.this_frame);
+                        if (size >= header.size()) {
+                            header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
+                            uint tagsize = header.completeTagSize();
+                            if (tagsize > 0) {
+                                mad_stream_skip(&m_stream, tagsize);
+                                return Ok;
+                            }
+                        }
                     }
 
                     continue;

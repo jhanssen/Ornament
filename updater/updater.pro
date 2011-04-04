@@ -5,7 +5,7 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . .. ../libs3/inc
+INCLUDEPATH += . .. ../medialibraries/s3 ../libs3/inc
 
 mac {
     INCLUDEPATH += /opt/local/include
@@ -13,10 +13,10 @@ mac {
 }
 
 # Input
-SOURCES += main.cpp ../tag.cpp ../awsconfig.cpp \
+SOURCES += main.cpp ../tag.cpp ../medialibraries/s3/awsconfig.cpp \
     updater.cpp \
     trackduration.cpp
-HEADERS += ../tag.h ../awsconfig.h \
+HEADERS += ../tag.h ../medialibraries/s3/awsconfig.h \
     updater.h \
     trackduration.h
 
