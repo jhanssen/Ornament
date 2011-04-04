@@ -20,6 +20,6 @@ HEADERS += ../tag.h ../awsconfig.h \
     updater.h \
     trackduration.h
 
-DEFINES += BUILDING_UPDATER
+DEFINES += TAG_PUBLIC_CTOR
 
 LIBS += ../libs3/build/lib/libs3.a -lmad -ltag -lcurl -lxml2
