@@ -1,0 +1,11 @@
+<!DOCTYPE RCC><RCC version="1.0">
+<qresource>
+    <file alias="play.svg">../icons/play.svg</file>
+    <file alias="pause.svg">../icons/pause.svg</file>
+    <file alias="stop.svg">../icons/stop.svg</file>
+    <file alias="seek-forward.svg">../icons/seek-forward.svg</file>
+    <file alias="seek-backward.svg">../icons/seek-backward.svg</file>
+    <file alias="skip-forward.svg">../icons/skip-forward.svg</file>
+    <file alias="skip-backward.svg">../icons/skip-backward.svg</file>
+</qresource>
+</RCC>

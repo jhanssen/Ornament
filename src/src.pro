@@ -14,6 +14,8 @@ mac {
 
 QT += multimedia declarative sql network
 
+RESOURCES = src.qrc
+
 # Input
 HEADERS += codecs/codecs.h \
     codecs/codec.h \

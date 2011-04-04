@@ -174,10 +174,10 @@ Rectangle {
         anchors.bottom: parent.bottom
         width: 50
 
-        Button { id: playButton; image: "icons/play.svg"; onClicked: { pauseOrPlayFile(musicModel.filenameByPosition(0)) } }
-        Button { id: stopButton; image: "icons/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
-        Button { id: prevButton; image: "icons/skip-backward.svg"; anchors.top: stopButton.bottom; onClicked: { playPrevious() } }
-        Button { id: nextButton; image: "icons/skip-forward.svg"; anchors.top: prevButton.bottom; onClicked: { playNext() } }
+        Button { id: playButton; image: "qrc:/play.svg"; onClicked: { pauseOrPlayFile(musicModel.filenameByPosition(0)) } }
+        Button { id: stopButton; image: "qrc:/stop.svg"; anchors.top: playButton.bottom; onClicked: { audioPlayer.stop() } }
+        Button { id: prevButton; image: "qrc:/skip-backward.svg"; anchors.top: stopButton.bottom; onClicked: { playPrevious() } }
+        Button { id: nextButton; image: "qrc:/skip-forward.svg"; anchors.top: prevButton.bottom; onClicked: { playNext() } }
         Button { id: mediaButton; text: "m"; anchors.top: nextButton.bottom; onClicked: { toggleMediaList() } }
         Button { id: plusButton; text: "+"; anchors.top: parent.top; opacity: 0; onClicked: { addMediaItem() } }
         Button { id: minusButton; text: "-"; anchors.top: plusButton.bottom; opacity: 0; onClicked: { removeMediaItem() } }
@@ -537,17 +537,17 @@ Rectangle {
     states: [
         State {
             name: "playing"
-            PropertyChanges { target: playButton; image: "icons/pause.svg" }
+            PropertyChanges { target: playButton; image: "qrc:/pause.svg" }
             PropertyChanges { target: artworkContainer; opacity: 1 }
         },
         State {
             name: "paused"
-            PropertyChanges { target: playButton; image: "icons/play.svg" }
+            PropertyChanges { target: playButton; image: "qrc:/play.svg" }
             PropertyChanges { target: artworkContainer; opacity: 1 }
         },
         State {
             name: "stopped"
-            PropertyChanges { target: playButton; image: "icons/play.svg" }
+            PropertyChanges { target: playButton; image: "qrc:/play.svg" }
             PropertyChanges { target: artworkContainer; opacity: 0 }
         }
     ]
