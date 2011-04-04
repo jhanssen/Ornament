@@ -96,6 +96,7 @@ void MediaLibraryJob::readLibrary()
     bool ok = m_iface->readFirstArtist(&a);
     while (ok) {
         emit artist(a);
+        a.albums.clear();
         ok = m_iface->readNextArtist(&a);
     }
 }
