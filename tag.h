@@ -39,11 +39,12 @@ public:
     bool isValid() const;
 
 private:
-#ifdef BUILDING_UPDATER
+#ifdef TAG_PUBLIC_CTOR
 public:
 #endif
     Tag(const QString& filename);
 
+private:
     QString m_filename;
     QHash<QString, QVariant> m_data;
 
