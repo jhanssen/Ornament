@@ -18,7 +18,7 @@ mac {
 }
 
 # Input
-HEADERS += s3.h ../../awsconfig.h ../../tag.h
-SOURCES += s3.cpp ../../awsconfig.cpp ../../tag.cpp
+HEADERS += s3.h awsconfig.h ../../tag.h
+SOURCES += s3.cpp awsconfig.cpp ../../tag.cpp
 
 LIBS += ../../libs3/build/lib/libs3.a -lxml2 -lcurl -ltag

@@ -26,7 +26,6 @@ HEADERS += codecs/codecs.h \
     io.h \
     buffer.h \
     medialibrary.h \
-    awsconfig.h \
     mediareader.h
 
 SOURCES += main.cpp \
@@ -41,7 +40,6 @@ SOURCES += main.cpp \
     io.cpp \
     buffer.cpp \
     medialibrary.cpp \
-    awsconfig.cpp \
     mediareader.cpp
 
 LIBS += -lmad -ltag

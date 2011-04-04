@@ -22,7 +22,6 @@
 #include "io.h"
 #include "codecs/codecs.h"
 #include "medialibrary.h"
-#include "awsconfig.h"
 
 #include <QApplication>
 #include <QDeclarativeComponent>
@@ -53,12 +52,6 @@ void MainView::showEvent(QShowEvent* event)
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
-
-    bool s3 = true;
-    if (s3 && !AwsConfig::init()) {
-        qDebug() << "unable to read aws config from ~/.player-aws";
-        return 1;
-    }
 
     IO::init();
     Codecs::init();
