@@ -27,6 +27,7 @@
 #include <QDeclarativeComponent>
 #include <QDeclarativeView>
 #include <QDeclarativeEngine>
+#include <QIcon>
 
 class MainView : public QDeclarativeView
 {
@@ -52,6 +53,7 @@ void MainView::showEvent(QShowEvent* event)
 int main(int argc, char** argv)
 {
     QApplication app(argc, argv);
+    QApplication::setWindowIcon(QIcon(":/Vinyl.png"));
 
     IO::init();
     Codecs::init();

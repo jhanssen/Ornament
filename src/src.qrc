@@ -7,5 +7,6 @@
     <file alias="seek-backward.svg">../icons/seek-backward.svg</file>
     <file alias="skip-forward.svg">../icons/skip-forward.svg</file>
     <file alias="skip-backward.svg">../icons/skip-backward.svg</file>
+    <file alias="Vinyl.png">../icons/Vinyl.png</file>
 </qresource>
 </RCC>
