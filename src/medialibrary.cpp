@@ -149,7 +149,7 @@ void MediaLibraryPrivate::queryInterfaces()
 #ifdef Q_OS_MAC
     dir.cd("../../..");
 #endif
-    dir.cd("medialibraries");
+    dir.cd("../medialibraries");
     QStringList files = dir.entryList(QDir::Files | QDir::Readable);
     foreach(const QString& filename, files) {
         qDebug() << "media library about to be queried" << filename;
