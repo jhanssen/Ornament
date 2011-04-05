@@ -14,4 +14,4 @@ Dependencies
 Icons
 -----
 
-* Application and window icon from Vinyl icon from [http://jollygreenjustin.deviantart.com/art/Vinyl-LP-Icon-161042640](http://jollygreenjustin.deviantart.com/art/Vinyl-LP-Icon-161042640)
+* Application and window icon from [http://jollygreenjustin.deviantart.com/art/Vinyl-LP-Icon-161042640](http://jollygreenjustin.deviantart.com/art/Vinyl-LP-Icon-161042640)
