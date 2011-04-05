@@ -152,17 +152,15 @@ void MediaLibraryPrivate::queryInterfaces()
     dir.cd("../medialibraries");
     QStringList files = dir.entryList(QDir::Files | QDir::Readable);
     foreach(const QString& filename, files) {
-        qDebug() << "media library about to be queried" << filename;
         QPluginLoader loader(dir.absoluteFilePath(filename));
         QObject* root = loader.instance();
-        if (!root) {
-            qDebug() << "... but no root" << loader.errorString();
+        if (!root)
             continue;
-        }
         MediaLibraryInterface* media = qobject_cast<MediaLibraryInterface*>(root);
         if (!media)
             continue;
-        qDebug() << "media library detected" << media;
+
+        // ### as a hack right now, use the first media library plugin
         if (!iface)
             iface = media;
     }
