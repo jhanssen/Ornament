@@ -35,6 +35,9 @@ void IOJob::stop()
 
 void IOJob::stopJob()
 {
+    if (m_origin == thread()) // Assume stopped already
+        return;
+
     Q_ASSERT(m_io == thread());
 
     if (m_io)
