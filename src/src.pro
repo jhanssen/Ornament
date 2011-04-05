@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET = Ornament
 DEPENDPATH += .
 INCLUDEPATH += . libs3/inc
 
