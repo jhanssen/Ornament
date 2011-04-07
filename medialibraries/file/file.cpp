@@ -18,6 +18,8 @@
 
 #include "file.h"
 #include <QFile>
+#include <QFileInfo>
+#include <QDir>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QDebug>
@@ -218,6 +220,21 @@ void MediaLibraryFile::readArtworkForTrack(const QString &filename, QImage *imag
     Tag tag(filename);
 
     *image = tag.data("picture0").value<QImage>();
+    if (image->isNull()) {
+        QFileInfo info(filename);
+        if (info.exists()) {
+            QDir dir = info.absoluteDir();
+
+            QStringList files = dir.entryList((QStringList() << "*.png" << "*.jpg" << "*.jpeg"), QDir::Files, QDir::Name);
+            foreach(const QString& file, files) {
+                QImage img(dir.absoluteFilePath(file));
+                if (!img.isNull()) {
+                    *image = img;
+                    return;
+                }
+            }
+        }
+    }
 }
 
 void MediaLibraryFile::readMetaDataForTrack(const QString &filename, Tag *tag)
