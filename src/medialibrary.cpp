@@ -126,7 +126,7 @@ public:
     MediaLibraryPrivate(MediaLibrary* parent);
     ~MediaLibraryPrivate();
 
-    void queryInterfaces();
+    void queryInterfaces(const QString& name);
 
     MediaLibrary* q;
     MediaLibraryInterface* iface;
@@ -143,7 +143,7 @@ MediaLibraryPrivate::~MediaLibraryPrivate()
 {
 }
 
-void MediaLibraryPrivate::queryInterfaces()
+void MediaLibraryPrivate::queryInterfaces(const QString &name)
 {
     QDir dir(QApplication::applicationDirPath());
 #ifdef Q_OS_MAC
@@ -160,18 +160,19 @@ void MediaLibraryPrivate::queryInterfaces()
         if (!media)
             continue;
 
-        // ### as a hack right now, use the first media library plugin
-        if (!iface)
+        if (media->name() == name) {
             iface = media;
+            break;
+        }
     }
 }
 
 MediaLibrary* MediaLibrary::s_inst = 0;
 
-MediaLibrary::MediaLibrary(QObject *parent)
+MediaLibrary::MediaLibrary(const QString& name, QObject *parent)
     : QObject(parent), m_priv(new MediaLibraryPrivate(this))
 {
-    m_priv->queryInterfaces();
+    m_priv->queryInterfaces(name);
 
     qRegisterMetaType<Artist>("Artist");
 }
@@ -180,10 +181,10 @@ MediaLibrary::~MediaLibrary()
 {
 }
 
-void MediaLibrary::init(QObject *parent)
+void MediaLibrary::init(const QString& name, QObject *parent)
 {
     if (!s_inst)
-        s_inst = new MediaLibrary(parent);
+        s_inst = new MediaLibrary(name, parent);
 }
 
 MediaLibrary* MediaLibrary::instance()

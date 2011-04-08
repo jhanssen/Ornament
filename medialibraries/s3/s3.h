@@ -54,6 +54,8 @@ public:
     MediaLibraryS3(QObject* parent = 0);
     ~MediaLibraryS3();
 
+    QString name();
+
     bool readFirstArtist(Artist* artist);
     bool readNextArtist(Artist* artist);
     void readArtworkForTrack(const QString& filename, QImage* image);

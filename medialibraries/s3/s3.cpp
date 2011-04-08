@@ -553,4 +553,9 @@ QByteArray MediaLibraryS3::mimeTypeForTrack(const QString &filename)
     return QByteArray();
 }
 
+QString MediaLibraryS3::name()
+{
+    return QLatin1String("s3");
+}
+
 Q_EXPORT_PLUGIN2(s3, MediaLibraryS3)

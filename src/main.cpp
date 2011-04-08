@@ -55,9 +55,15 @@ int main(int argc, char** argv)
     QApplication app(argc, argv);
     QApplication::setWindowIcon(QIcon(":/Vinyl.png"));
 
+    QString media = QLatin1String("file");
+    for (int i = 1; i < argc; ++i) {
+        if (qstrcmp(argv[i], "-m") == 0 && i + i < argc)
+            media = QLatin1String(argv[i + 1]);
+    }
+
     IO::init();
     Codecs::init();
-    MediaLibrary::init();
+    MediaLibrary::init(media);
 
     qmlRegisterType<AudioDevice>("AudioDevice", 1, 0, "AudioDevice");
     qmlRegisterType<AudioPlayer>("AudioPlayer", 1, 0, "AudioPlayer");

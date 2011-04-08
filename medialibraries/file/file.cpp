@@ -249,4 +249,9 @@ QByteArray MediaLibraryFile::mimeTypeForTrack(const QString &filename)
     return QByteArray();
 }
 
+QString MediaLibraryFile::name()
+{
+    return QLatin1String("file");
+}
+
 Q_EXPORT_PLUGIN2(file, MediaLibraryFile)

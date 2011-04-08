@@ -63,6 +63,8 @@ class MediaLibraryInterface
 public:
     virtual ~MediaLibraryInterface() {}
 
+    virtual QString name() = 0;
+
     // These are executed in the IO thread
     virtual bool readFirstArtist(Artist* artist) = 0;
     virtual bool readNextArtist(Artist* artist) = 0;
@@ -80,7 +82,7 @@ class MediaLibrary : public QObject
 {
     Q_OBJECT
 public:
-    static void init(QObject* parent = 0);
+    static void init(const QString& name, QObject* parent = 0);
     static MediaLibrary* instance();
 
     ~MediaLibrary();
@@ -103,7 +105,7 @@ signals:
 private:
     friend class MediaLibraryPrivate;
 
-    MediaLibrary(QObject* parent = 0);
+    MediaLibrary(const QString& name, QObject* parent = 0);
 
     MediaLibraryPrivate* m_priv;
     static MediaLibrary* s_inst;

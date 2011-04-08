@@ -54,6 +54,8 @@ public:
     MediaLibraryFile(QObject* parent = 0);
     ~MediaLibraryFile();
 
+    QString name();
+
     bool readFirstArtist(Artist* artist);
     bool readNextArtist(Artist* artist);
     void readArtworkForTrack(const QString& filename, QImage* image);
