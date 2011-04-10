@@ -121,8 +121,15 @@ void MediaReaderS3Private::replyData()
 
 void MediaReaderS3Private::replyFinished()
 {
-    if (!m_aborted && sender() == m_reply)
+    if (!m_aborted && sender() == m_reply) {
         m_finished = true;
+        m_reply->deleteLater();
+        m_reply = 0;
+    } else if (sender() != m_reply) {
+        QNetworkReply* reply = qobject_cast<QNetworkReply*>(sender());
+        if (reply)
+            reply->deleteLater();
+    }
 }
 
 void MediaReaderS3Private::replyError(QNetworkReply::NetworkError errorType)
