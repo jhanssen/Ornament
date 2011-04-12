@@ -10,6 +10,7 @@ INCLUDEPATH += . libs3/inc
 mac {
     INCLUDEPATH += /opt/local/include
     LIBS += -L/opt/local/lib
+    ICON = ../icons/Ornament.icns
 }
 
 QT += multimedia declarative sql network
