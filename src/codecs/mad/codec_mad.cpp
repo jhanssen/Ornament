@@ -26,30 +26,16 @@
 #define INPUT_BUFFER_SIZE (8196 * 5)
 #define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
 
-static signed short MadFixedToSshort(mad_fixed_t Fixed)
+static inline int MadFixedRound(unsigned int bits, mad_fixed_t Fixed)
 {
-    /* Clipping */
-    if(Fixed>=MAD_F_ONE)
-        return(SHRT_MAX);
-    if(Fixed<=-MAD_F_ONE)
-        return(-SHRT_MAX);
+    Fixed += (1L << (MAD_F_FRACBITS - bits));
 
-    /* Conversion. */
-    Fixed=Fixed>>(MAD_F_FRACBITS-15);
-    return((signed short)Fixed);
-}
+    if (Fixed >= MAD_F_ONE)
+        Fixed = MAD_F_ONE - 1;
+    else if (Fixed < -MAD_F_ONE)
+        Fixed = -MAD_F_ONE;
 
-static signed int MadFixedToInt(mad_fixed_t Fixed)
-{
-    /* Clipping */
-    if(Fixed>=MAD_F_ONE)
-        return(INT_MAX);
-    if(Fixed<=-MAD_F_ONE)
-        return(-INT_MAX);
-
-    /* Conversion. */
-    Fixed=Fixed>>(MAD_F_FRACBITS-23);
-    return((signed int)Fixed);
+    return Fixed >> (MAD_F_FRACBITS + 1 - bits);
 }
 
 static int timerToMs(mad_timer_t* timer)
@@ -183,12 +169,12 @@ void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* out
 {
     signed short sample;
     for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
-        sample = MadFixedToSshort(m_synth.pcm.samples[0][i]);
+        sample = MadFixedRound(16, m_synth.pcm.samples[0][i]);
         *((*outptr)++) = sample & 0xff;
         *((*outptr)++) = sample >> 8;
 
         if (MAD_NCHANNELS(&m_frame.header) > 1)
-            sample = MadFixedToSshort(m_synth.pcm.samples[1][i]);
+            sample = MadFixedRound(16, m_synth.pcm.samples[1][i]);
 
         *((*outptr)++) = sample & 0xff;
         *((*outptr)++) = sample >> 8;
@@ -210,13 +196,13 @@ void CodecMad::decode24(QByteArray** out, char** outptr, char** outend, int* out
 {
     signed int sample;
     for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
-        sample = MadFixedToInt(m_synth.pcm.samples[0][i]);
+        sample = MadFixedRound(24, m_synth.pcm.samples[0][i]);
         *((*outptr)++) = sample & 0xff;
         *((*outptr)++) = (sample >> 8) & 0xff;
         *((*outptr)++) = sample >> 16;
 
         if (MAD_NCHANNELS(&m_frame.header) > 1)
-            sample = MadFixedToInt(m_synth.pcm.samples[1][i]);
+            sample = MadFixedRound(24, m_synth.pcm.samples[1][i]);
 
         *((*outptr)++) = sample & 0xff;
         *((*outptr)++) = (sample >> 8) & 0xff;
