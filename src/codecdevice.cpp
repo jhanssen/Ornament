@@ -54,14 +54,14 @@ protected:
 private slots:
     void emitData(QByteArray* b);
 
+    void fillBuffer();
+
 private:
     Q_INVOKABLE void stopThread();
     Q_INVOKABLE void consumedData(int size);
     Q_INVOKABLE void init();
     Q_INVOKABLE void pauseReader();
     Q_INVOKABLE void resumeReader();
-
-    void fillBuffer();
 
 private:
     int m_total;
@@ -161,6 +161,9 @@ void CodecThread::fillBuffer()
         return;
     }
 
+    if (m_total > CODEC_BUFFER_MIN)
+        return;
+
     Codec::Status status = m_codec->decode();
     do {
         if (status == Codec::NeedInput) {
@@ -194,6 +197,10 @@ void CodecThread::init()
         disconnect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(emitData(QByteArray*)));
         connect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(emitData(QByteArray*)));
         fillBuffer();
+    }
+    if (m_reader) {
+        disconnect(m_reader, SIGNAL(readyRead()), this, SLOT(fillBuffer()));
+        connect(m_reader, SIGNAL(readyRead()), this, SLOT(fillBuffer()));
     }
 }
 

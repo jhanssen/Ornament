@@ -320,6 +320,7 @@ void MediaReader::readerData(QByteArray *data)
     }
 
     m_buffer.add(data);
+    emit readyRead();
 
     if (m_requestedData && (m_buffer.size() * 2) > MIN_BUFFER_SIZE)
         m_requestedData = false;

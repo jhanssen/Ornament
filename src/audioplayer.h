@@ -20,6 +20,7 @@
 #define AUDIOPLAYER_H
 
 #include <QObject>
+#include <QTimer>
 #include <QDeclarativeImageProvider>
 #include "audiodevice.h"
 #include "tag.h"
@@ -70,12 +71,15 @@ private slots:
     void outputStateChanged(QAudio::State state);
     void artworkReady(const QImage& image);
     void intervalNotified();
+    void fillOutputDevice();
 
 private:
     State m_state;
 
     QString m_filename;
     AudioDevice* m_audio;
+    QIODevice* m_outputDevice;
+    QTimer m_fillTimer;
 
     CodecDevice* m_codec;
 

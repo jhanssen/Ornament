@@ -29,7 +29,7 @@
 #include <QDebug>
 
 AudioPlayer::AudioPlayer(QObject *parent) :
-    QObject(parent), m_state(Stopped), m_audio(0), m_codec(0)
+    QObject(parent), m_state(Stopped), m_audio(0), m_outputDevice(0), m_codec(0)
 {
     qRegisterMetaType<State>("State");
 
@@ -38,6 +38,10 @@ AudioPlayer::AudioPlayer(QObject *parent) :
     connect(MediaLibrary::instance(), SIGNAL(artwork(QImage)), this, SLOT(artworkReady(QImage)));
 
     qDebug() << "constructing audioplayer" << this;
+
+    m_fillTimer.setInterval(100);
+    m_fillTimer.setSingleShot(false);
+    connect(&m_fillTimer, SIGNAL(timeout()), this, SLOT(fillOutputDevice()));
 }
 
 AudioPlayer::~AudioPlayer()
@@ -192,11 +196,32 @@ void AudioPlayer::play()
         m_audio->output()->setNotifyInterval(100);
         connect(m_audio->output(), SIGNAL(notify()), this, SLOT(intervalNotified()));
 
-        m_audio->output()->start(m_codec);
+        //m_audio->output()->start(m_codec);
+        if (m_outputDevice)
+            delete m_outputDevice;
+        m_outputDevice = m_audio->output()->start();
+        m_outputDevice->setParent(this);
+        fillOutputDevice();
+        m_fillTimer.start();
     } else if (m_state == Paused) {
         m_codec->resumeReader();
         m_audio->output()->resume();
     }
+}
+
+void AudioPlayer::fillOutputDevice()
+{
+    int outSize = m_audio->output()->bytesFree();
+    int inSize = m_codec->bytesAvailable();
+    int size = qMin(outSize, inSize);
+
+    //qDebug() << "filling" << size << outSize << inSize;
+
+    QByteArray data = m_codec->read(size);
+    m_outputDevice->write(data);
+
+    if (!m_codec->isOpen())
+        m_fillTimer.stop();
 }
 
 void AudioPlayer::intervalNotified()
