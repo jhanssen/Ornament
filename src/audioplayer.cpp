@@ -212,6 +212,10 @@ void AudioPlayer::play()
 void AudioPlayer::fillOutputDevice()
 {
     int outSize = m_audio->output()->bytesFree();
+    if (!outSize) {
+        return;
+    }
+
     int inSize = m_codec->bytesAvailable();
     int size = qMin(outSize, inSize);
 
