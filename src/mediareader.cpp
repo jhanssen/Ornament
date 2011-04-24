@@ -156,10 +156,11 @@ void MediaReaderJob::readData()
 
     //qDebug() << "reader read" << d->size() << "bytes";
 
-    m_toread -= d->size();
+    const int sz = d->size();
+    m_toread -= sz;
     emit data(d);
 
-    m_position += d->size();
+    m_position += sz;
 
     if (m_iface->atEnd()) {
         qDebug() << "reader finished";
