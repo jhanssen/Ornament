@@ -21,6 +21,7 @@
 
 #include "codecs/codec.h"
 #include <mad.h>
+#include <samplerate.h>
 
 #include <QHash>
 #include <QList>
@@ -53,11 +54,14 @@ public slots:
     Status decode();
 
 private:
-    void decode16(QByteArray** out, char** outptr, char** outend, int* outsize);
-    void decode24(QByteArray** out, char** outptr, char** outend, int* outsize);
+    CodecMad::Status decode16();
+    CodecMad::Status decode24();
+    void resample(mad_fixed_t** pcmleft, mad_fixed_t** pcmright, int* pcmlen);
 
 private:
     QAudioFormat m_format;
+    unsigned int m_samplerate;
+    bool m_end;
 
     struct mad_stream m_stream;
     struct mad_frame m_frame;
@@ -68,7 +72,9 @@ private:
     QByteArray m_data;
     unsigned char* m_buffer;
 
-    void (CodecMad::*decodeFunc)(QByteArray** out, char** outptr, char** outend, int* outsize);
+    SRC_STATE* m_sampleState;
+
+    CodecMad::Status (CodecMad::*decodeFunc)();
 };
 
 #endif

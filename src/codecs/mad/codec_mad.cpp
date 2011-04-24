@@ -26,6 +26,8 @@
 #define INPUT_BUFFER_SIZE (8196 * 5)
 #define OUTPUT_BUFFER_SIZE 8196 // Should be divisible by both 4 and 6
 
+#define MAD_SCALE ((float)(1L << MAD_F_SCALEBITS))
+
 static inline int MadFixedRound(unsigned int bits, mad_fixed_t Fixed)
 {
     Fixed += (1L << (MAD_F_FRACBITS - bits));
@@ -118,7 +120,7 @@ int AudioFileInformationMad::length() const
 }
 
 CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_buffer(0)
+    : Codec(parent), m_samplerate(0), m_end(false), m_buffer(0), m_sampleState(0)
 {
 }
 
@@ -142,6 +144,11 @@ bool CodecMad::init(const QAudioFormat& format)
     mad_synth_init(&m_synth);
     mad_timer_reset(&m_timer);
 
+    int err;
+    m_sampleState = src_new(SRC_SINC_MEDIUM_QUALITY, 2, &err);
+    //m_sampleState = src_new(SRC_LINEAR, 2, &err);
+    m_end = false;
+
     if (!m_buffer)
         m_buffer = new unsigned char[INPUT_BUFFER_SIZE + MAD_BUFFER_GUARD];
 
@@ -158,6 +165,9 @@ void CodecMad::deinit()
 {
     delete[] m_buffer;
     m_buffer = 0;
+    m_samplerate = 0;
+
+    src_delete(m_sampleState);
 
     mad_stream_finish(&m_stream);
     mad_frame_finish(&m_frame);
@@ -165,60 +175,169 @@ void CodecMad::deinit()
     mad_timer_reset(&m_timer);
 }
 
-void CodecMad::decode16(QByteArray** out, char** outptr, char** outend, int* outsize)
+CodecMad::Status CodecMad::decode16()
 {
+    QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+    char* outptr = out->data();
+    char* outend = outptr + OUTPUT_BUFFER_SIZE;
+    int outsize = 0;
+
+    int pcmlen = m_synth.pcm.length;
+    mad_fixed_t* pcmleft = m_synth.pcm.samples[0];
+    mad_fixed_t* pcmright = 0;
+    if (MAD_NCHANNELS(&m_frame.header) > 1)
+        pcmright = m_synth.pcm.samples[1];
+    else
+        pcmright = pcmleft;
+
+    if (m_samplerate && m_samplerate != static_cast<unsigned int>(m_format.sampleRate()))
+        resample(&pcmleft, &pcmright, &pcmlen);
+
     signed short sample;
-    for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
-        sample = MadFixedRound(16, m_synth.pcm.samples[0][i]);
-        *((*outptr)++) = sample & 0xff;
-        *((*outptr)++) = sample >> 8;
+    for (unsigned short i = 0; i < pcmlen; ++i) {
+        sample = MadFixedRound(16, pcmleft[i]);
+        *(outptr)++ = sample & 0xff;
+        *(outptr)++ = sample >> 8;
 
         if (MAD_NCHANNELS(&m_frame.header) > 1)
-            sample = MadFixedRound(16, m_synth.pcm.samples[1][i]);
+            sample = MadFixedRound(16, pcmright[i]);
 
-        *((*outptr)++) = sample & 0xff;
-        *((*outptr)++) = sample >> 8;
+        *(outptr)++ = sample & 0xff;
+        *(outptr)++ = sample >> 8;
 
-        *outsize += 4;
+        outsize += 4;
 
-        if (*outptr == *outend) {
-            emit output(*out);
+        if (outptr == outend) {
+            emit output(out);
 
-            *out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
-            *outptr = (*out)->data();
-            *outend = *outptr + OUTPUT_BUFFER_SIZE;
-            *outsize = 0;
+            out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+            outptr = out->data();
+            outend = outptr + OUTPUT_BUFFER_SIZE;
+            outsize = 0;
         }
     }
+
+    if (m_samplerate && m_samplerate != static_cast<unsigned int>(m_format.sampleRate())) {
+        delete[] pcmleft;
+        delete[] pcmright;
+    }
+
+    if (outsize > 0) {
+        out->truncate(outsize);
+        emit output(out);
+        emit position(timerToMs(&m_timer));
+
+        return Ok;
+    } else
+        delete out;
+
+    return Error;
 }
 
-void CodecMad::decode24(QByteArray** out, char** outptr, char** outend, int* outsize)
+CodecMad::Status CodecMad::decode24()
 {
+    QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+    char* outptr = out->data();
+    char* outend = outptr + OUTPUT_BUFFER_SIZE;
+    int outsize = 0;
+
+    int pcmlen = m_synth.pcm.length;
+    mad_fixed_t* pcmleft = m_synth.pcm.samples[0];
+    mad_fixed_t* pcmright = 0;
+    if (MAD_NCHANNELS(&m_frame.header) > 1)
+        pcmright = m_synth.pcm.samples[1];
+    else
+        pcmright = pcmleft;
+
+    if (m_samplerate && m_samplerate != static_cast<unsigned int>(m_format.sampleRate()))
+        resample(&pcmleft, &pcmright, &pcmlen);
+
     signed int sample;
-    for (unsigned short i = 0; i < m_synth.pcm.length; ++i) {
-        sample = MadFixedRound(24, m_synth.pcm.samples[0][i]);
-        *((*outptr)++) = sample & 0xff;
-        *((*outptr)++) = (sample >> 8) & 0xff;
-        *((*outptr)++) = sample >> 16;
+    for (unsigned short i = 0; i < pcmlen; ++i) {
+        sample = MadFixedRound(24, pcmleft[i]);
+        *(outptr)++ = sample & 0xff;
+        *(outptr)++ = (sample >> 8) & 0xff;
+        *(outptr)++ = sample >> 16;
 
         if (MAD_NCHANNELS(&m_frame.header) > 1)
-            sample = MadFixedRound(24, m_synth.pcm.samples[1][i]);
+            sample = MadFixedRound(24, pcmright[i]);
 
-        *((*outptr)++) = sample & 0xff;
-        *((*outptr)++) = (sample >> 8) & 0xff;
-        *((*outptr)++) = sample >> 16;
+        *(outptr)++ = sample & 0xff;
+        *(outptr)++ = (sample >> 8) & 0xff;
+        *(outptr)++ = sample >> 16;
 
-        *outsize += 6;
+        outsize += 6;
 
-        if (*outptr == *outend) {
-            emit output(*out);
+        if (outptr == outend) {
+            emit output(out);
 
-            *out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
-            *outptr = (*out)->data();
-            *outend = *outptr + OUTPUT_BUFFER_SIZE;
-            *outsize = 0;
+            out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
+            outptr = out->data();
+            outend = outptr + OUTPUT_BUFFER_SIZE;
+            outsize = 0;
         }
     }
+
+    if (m_samplerate && m_samplerate != static_cast<unsigned int>(m_format.sampleRate())) {
+        delete[] pcmleft;
+        delete[] pcmright;
+    }
+
+    if (outsize > 0) {
+        out->truncate(outsize);
+        emit output(out);
+        emit position(timerToMs(&m_timer));
+
+        return Ok;
+    } else
+        delete out;
+
+    return Error;
+}
+
+void CodecMad::resample(mad_fixed_t **pcmleft, mad_fixed_t **pcmright, int *pcmlen)
+{
+    int insize = *pcmlen;
+
+    double ratio = static_cast<double>(m_format.sampleRate()) / static_cast<double>(m_samplerate);
+    int outsize = static_cast<int>(static_cast<double>(insize) * ratio) + 1;
+
+    float* infloat = new float[insize * 2];
+    float* inptr = infloat;
+    for (int i = 0; i < insize; ++i) {
+        *(inptr++) = (float)((*pcmleft)[i]) / MAD_SCALE;
+        *(inptr++) = (float)((*pcmright)[i]) / MAD_SCALE;
+    }
+
+    float* outfloat = new float[outsize * 2];
+
+    SRC_DATA srcdata;
+    srcdata.end_of_input = (insize == 0);
+    srcdata.input_frames = insize;
+    srcdata.output_frames = outsize;
+    srcdata.data_in = infloat;
+    srcdata.data_out = outfloat;
+    srcdata.src_ratio = ratio;
+    int err = src_process(m_sampleState, &srcdata);
+    if (err)
+        qDebug() << "error when resampling" << err << src_strerror(err);
+    outsize = srcdata.output_frames_gen;
+
+    Q_ASSERT(srcdata.input_frames_used == insize);
+
+    *pcmlen = outsize;
+    *pcmleft = new mad_fixed_t[outsize];
+    *pcmright = new mad_fixed_t[outsize];
+    mad_fixed_t* leftptr = *pcmleft;
+    mad_fixed_t* rightptr = *pcmright;
+    int outsize2 = outsize * 2;
+    for (int i = 0; i < outsize2; i += 2) {
+        *(leftptr++) = lrint(outfloat[i] * MAD_SCALE);
+        *(rightptr++) = lrint(outfloat[i + 1] * MAD_SCALE);
+    }
+
+    delete[] outfloat;
+    delete[] infloat;
 }
 
 void CodecMad::feed(const QByteArray& data, bool end)
@@ -247,6 +366,7 @@ void CodecMad::feed(const QByteArray& data, bool end)
         if (end) {
             memset(m_buffer + rem + copylen, 0, MAD_BUFFER_GUARD);
             copylen += MAD_BUFFER_GUARD;
+            m_end = true;
         }
 
         //qDebug() << "pushing" << copylen + rem << "bytes to mad";
@@ -291,6 +411,9 @@ CodecMad::Status CodecMad::decode()
                     return Error;
                 }
             }
+        } else {
+            if (!m_samplerate)
+                m_samplerate = m_frame.header.samplerate;
         }
         break;
     }
@@ -306,23 +429,7 @@ CodecMad::Status CodecMad::decode()
             return Error;
     }
 
-    QByteArray* out = new QByteArray(OUTPUT_BUFFER_SIZE, '\0');
-    char* outptr = out->data();
-    char* outend = outptr + OUTPUT_BUFFER_SIZE;
-    int outsize = 0;
-
     mad_synth_frame(&m_synth, &m_frame);
 
-    (this->*decodeFunc)(&out, &outptr, &outend, &outsize);
-
-    if (outsize > 0) {
-        out->truncate(outsize);
-        emit output(out);
-        emit position(timerToMs(&m_timer));
-
-        return Ok;
-    } else
-        delete out;
-
-    return Error;
+    return (this->*decodeFunc)();
 }

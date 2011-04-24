@@ -45,7 +45,7 @@ SOURCES += main.cpp \
     medialibrary.cpp \
     mediareader.cpp
 
-LIBS += -lmad -ltag
+LIBS += -lmad -ltag -lsamplerate
 
 OTHER_FILES += \
     player.qml \
