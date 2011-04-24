@@ -20,55 +20,157 @@
 #include "mediareader.h"
 #include "codecs/codec.h"
 #include <QApplication>
+#include <QThread>
 #include <QDebug>
 
 #define CODEC_BUFFER_MIN (16384 * 4)
 #define CODEC_BUFFER_MAX (16384 * 50)
 #define CODEC_INPUT_READ 8192
 
-CodecDevice::CodecDevice(QObject *parent)
-    : QIODevice(parent), m_input(0), m_codec(0)
+class CodecThread : public QThread
 {
+    Q_OBJECT
+public:
+    CodecThread(QObject* parent = 0);
+    ~CodecThread();
+
+    void setMediaReader(MediaReader* reader);
+    void setCodec(Codec* codec);
+
+    void stop();
+    void notifyConsumed(int size);
+
+    void pause();
+    void resume();
+
+signals:
+    void data(QByteArray* b);
+    void atEnd();
+    void error();
+
+protected:
+    void run();
+
+private slots:
+    void emitData(QByteArray* b);
+
+private:
+    Q_INVOKABLE void stopThread();
+    Q_INVOKABLE void consumedData(int size);
+    Q_INVOKABLE void init();
+    Q_INVOKABLE void pauseReader();
+    Q_INVOKABLE void resumeReader();
+
+    void fillBuffer();
+
+private:
+    int m_total;
+    MediaReader* m_reader;
+    Codec* m_codec;
+
+    QThread* m_origin;
+};
+
+CodecThread::CodecThread(QObject *parent)
+    : QThread(parent), m_total(0), m_reader(0), m_codec(0), m_origin(QThread::currentThread())
+{
+    moveToThread(this);
 }
 
-CodecDevice::~CodecDevice()
+CodecThread::~CodecThread()
 {
-    delete m_input;
+    delete m_reader;
     delete m_codec;
 }
 
-bool CodecDevice::isSequential() const
+void CodecThread::setMediaReader(MediaReader *reader)
 {
-    return true;
+    if (m_reader)
+        QMetaObject::invokeMethod(m_reader, "deleteLater");
+    m_reader = reader;
+    m_reader->moveToThread(this);
+    QMetaObject::invokeMethod(this, "init");
 }
 
-void CodecDevice::setInputReader(MediaReader *input)
-{
-    m_input = input;
-}
-
-void CodecDevice::setCodec(Codec *codec)
+void CodecThread::setCodec(Codec *codec)
 {
     if (m_codec)
-        disconnect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
+        QMetaObject::invokeMethod(m_codec, "deleteLater");
     m_codec = codec;
-    connect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
+    m_codec->moveToThread(this);
+    QMetaObject::invokeMethod(this, "init");
 }
 
-bool CodecDevice::fillBuffer()
+void CodecThread::stop()
 {
-    if (m_input->atEnd() || !m_input->isOpen())
-        return false;
+    QMetaObject::invokeMethod(this, "stopThread");
+}
+
+void CodecThread::notifyConsumed(int size)
+{
+    QMetaObject::invokeMethod(this, "consumedData", Q_ARG(int, size));
+}
+
+void CodecThread::pause()
+{
+    QMetaObject::invokeMethod(this, "pauseReader");
+}
+
+void CodecThread::resume()
+{
+    QMetaObject::invokeMethod(this, "resumeReader");
+}
+
+void CodecThread::pauseReader()
+{
+    if (m_reader)
+        m_reader->pause();
+}
+
+void CodecThread::resumeReader()
+{
+    if (m_reader)
+        m_reader->resume();
+}
+
+void CodecThread::stopThread()
+{
+    quit();
+}
+
+void CodecThread::consumedData(int size)
+{
+    m_total -= size;
+    fillBuffer();
+}
+
+void CodecThread::emitData(QByteArray* b)
+{
+    m_total += b->size();
+    emit data(b);
+}
+
+void CodecThread::fillBuffer()
+{
+    if (!m_reader || !m_codec) {
+        return;
+    }
+
+    if (m_reader->atEnd() || !m_reader->isOpen()) {
+        emit atEnd();
+        return;
+    }
 
     Codec::Status status = m_codec->decode();
     do {
         if (status == Codec::NeedInput) {
-            QByteArray input = m_input->read(CODEC_INPUT_READ);
-            if (input.isEmpty())
+            QByteArray input = m_reader->read(CODEC_INPUT_READ);
+            if (input.isEmpty()) {
                 break;
+            }
 
             //qDebug() << "feeding" << input.size();
-            m_codec->feed(input, m_input->atEnd());
+            m_codec->feed(input, m_reader->atEnd());
             //qDebug() << "feed complete, decoding";
         } else if (status == Codec::Error) {
             qDebug() << "codec error";
@@ -79,19 +181,78 @@ bool CodecDevice::fillBuffer()
             status = m_codec->decode();
             //qDebug() << "decode status" << status;
         } while (status == Codec::Ok);
-    } while (m_decoded.size() < CODEC_BUFFER_MAX);
+    } while (m_total < CODEC_BUFFER_MAX);
 
-    return (status != Codec::Error);
+    if (status == Codec::Error)
+        emit error();
+}
+
+void CodecThread::init()
+{
+    m_total = 0;
+    if (m_codec) {
+        disconnect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(emitData(QByteArray*)));
+        connect(m_codec, SIGNAL(output(QByteArray*)), this, SLOT(emitData(QByteArray*)));
+        fillBuffer();
+    }
+}
+
+void CodecThread::run()
+{
+    init();
+
+    exec();
+}
+
+#include "codecdevice.moc"
+
+CodecDevice::CodecDevice(QObject *parent)
+    : QIODevice(parent), m_atend(false), m_thread(new CodecThread)
+{
+    connect(m_thread, SIGNAL(finished()), this, SLOT(disposeThread()));
+    connect(m_thread, SIGNAL(data(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
+    connect(m_thread, SIGNAL(atEnd()), this, SLOT(codecAtEnd()));
+    connect(m_thread, SIGNAL(error()), this, SLOT(codecError()));
+    m_thread->start();
+}
+
+CodecDevice::~CodecDevice()
+{
+    m_thread->stop();
+    m_thread->wait();
+    delete m_thread;
+}
+
+void CodecDevice::disposeThread()
+{
+    CodecThread* thread = qobject_cast<CodecThread*>(sender());
+    if (!thread)
+        return;
+    delete thread;
+}
+
+bool CodecDevice::isSequential() const
+{
+    return true;
+}
+
+void CodecDevice::setInputReader(MediaReader *input)
+{
+    m_thread->setMediaReader(input);
+}
+
+void CodecDevice::setCodec(Codec *codec)
+{
+    m_thread->setCodec(codec);
 }
 
 bool CodecDevice::open(OpenMode mode)
 {
     bool ok = QIODevice::open(mode);
-    if (!ok || !m_input || !m_codec)
+    if (!ok)
         return false;
 
-    fillBuffer();
-
+    m_atend = false;
     return true;
 }
 
@@ -102,12 +263,12 @@ qint64 CodecDevice::bytesAvailable() const
 
 qint64 CodecDevice::readData(char *data, qint64 maxlen)
 {
-    //qDebug() << "we go?" << m_decoded.size();
     if (m_decoded.size() < CODEC_BUFFER_MIN) {
-        if (!fillBuffer() && m_decoded.isEmpty()) {
-            qDebug() << "no go :(";
+        if (!m_atend)
+            m_thread->notifyConsumed(0);
+        else if (m_decoded.isEmpty()) {
             close();
-            return -1;
+            return 0;
         }
     }
 
@@ -117,8 +278,9 @@ qint64 CodecDevice::readData(char *data, qint64 maxlen)
         return 0;
 
     QByteArray bufferdata = m_decoded.read(toread);
-
     memcpy(data, bufferdata.constData(), toread);
+
+    m_thread->notifyConsumed(toread);
 
     return toread;
 }
@@ -131,6 +293,18 @@ qint64 CodecDevice::writeData(const char *data, qint64 len)
     return -1;
 }
 
+void CodecDevice::codecAtEnd()
+{
+    m_atend = true;
+}
+
+void CodecDevice::codecError()
+{
+    qDebug() << "codec error";
+    m_decoded.clear();
+    close();
+}
+
 void CodecDevice::codecOutput(QByteArray* output)
 {
     m_decoded.add(output);
@@ -138,10 +312,10 @@ void CodecDevice::codecOutput(QByteArray* output)
 
 void CodecDevice::pauseReader()
 {
-    m_input->pause();
+    m_thread->pause();
 }
 
 void CodecDevice::resumeReader()
 {
-    m_input->resume();
+    m_thread->resume();
 }

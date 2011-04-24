@@ -25,6 +25,7 @@
 
 class MediaReader;
 class Codec;
+class CodecThread;
 
 class CodecDevice : public QIODevice
 {
@@ -50,14 +51,16 @@ protected:
 
 private slots:
     void codecOutput(QByteArray* output);
+    void codecAtEnd();
+    void codecError();
+    void disposeThread();
 
 private:
     bool fillBuffer();
 
 private:
-    MediaReader* m_input;
-    Codec* m_codec;
-
+    bool m_atend;
+    CodecThread* m_thread;
     Buffer m_decoded;
 };
 
