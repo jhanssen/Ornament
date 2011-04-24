@@ -216,18 +216,15 @@ void AudioPlayer::fillOutputDevice()
         return;
     }
 
-    int inSize = m_codec->bytesAvailable();
-    int size = qMin(outSize, inSize);
-    if (!size)
-        return;
-
     //qDebug() << "filling" << size << outSize << inSize;
 
-    QByteArray data = m_codec->read(size);
+    QByteArray data = m_codec->read(outSize);
     m_outputDevice->write(data);
 
-    if (!m_codec->isOpen())
+    if (!m_codec->isOpen()) {
+        m_audio->output()->stop();
         m_fillTimer.stop();
+    }
 }
 
 void AudioPlayer::intervalNotified()
