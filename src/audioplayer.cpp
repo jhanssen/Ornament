@@ -218,6 +218,8 @@ void AudioPlayer::fillOutputDevice()
 
     int inSize = m_codec->bytesAvailable();
     int size = qMin(outSize, inSize);
+    if (!size)
+        return;
 
     //qDebug() << "filling" << size << outSize << inSize;
 
