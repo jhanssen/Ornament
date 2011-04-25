@@ -8,6 +8,7 @@ DEPENDPATH += .
 INCLUDEPATH += . libs3/inc
 
 mac {
+    LIBS += -L/Users/jhanssen/flac121/lib -lFLAC
     INCLUDEPATH += /opt/local/include
     LIBS += -L/opt/local/lib
     ICON = ../icons/Ornament.icns
@@ -47,7 +48,7 @@ SOURCES += main.cpp \
     medialibrary.cpp \
     mediareader.cpp
 
-LIBS += -lmad -ltag -lsamplerate -lFLAC
+LIBS += -lmad -ltag -lsamplerate
 
 OTHER_FILES += \
     player.qml \

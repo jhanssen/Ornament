@@ -58,9 +58,12 @@ private:
     void setFlacMetadata(const FLAC__StreamMetadata* meta);
     bool processAudioData(const FLAC__Frame* frame, const FLAC__int32* const buffer[]);
 
+    bool resample(FLAC__int32** left, FLAC__int32** right, unsigned int* size, unsigned int bps);
+
 private:
     QAudioFormat m_format;
     unsigned int m_samplerate;
+    unsigned int m_maxframesize;
     bool m_end;
     bool m_infoemitted;
     QByteArray m_data;
