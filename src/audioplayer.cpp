@@ -176,11 +176,7 @@ void AudioPlayer::play()
             return;
         }
 
-        m_audio->createOutput();
-        connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
-                this, SLOT(outputStateChanged(QAudio::State)));
-
-        codec->init(m_audio->output()->format());
+        codec->init();
 
         m_codec = new CodecDevice(this);
         m_codec->setCodec(codec);
@@ -192,6 +188,14 @@ void AudioPlayer::play()
 
             return;
         }
+
+        m_codec->decodeUntilInformationReceived();
+
+        m_audio->createOutput(m_codec->sampleRate(), m_codec->sampleSize());
+        connect(m_audio->output(), SIGNAL(stateChanged(QAudio::State)),
+                this, SLOT(outputStateChanged(QAudio::State)));
+
+        m_codec->setAudioFormat(m_audio->output()->format());
 
         m_audio->output()->setNotifyInterval(100);
         connect(m_audio->output(), SIGNAL(notify()), this, SLOT(intervalNotified()));

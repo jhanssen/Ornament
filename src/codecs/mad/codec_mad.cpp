@@ -120,7 +120,7 @@ int AudioFileInformationMad::length() const
 }
 
 CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_samplerate(0), m_end(false), m_skipping(0), m_buffer(0), m_sampleState(0)
+    : Codec(parent), m_samplerate(0), m_end(false), m_skipping(0), m_infoemitted(false), m_buffer(0), m_sampleState(0)
 {
 }
 
@@ -129,15 +129,11 @@ CodecMad::~CodecMad()
     deinit();
 }
 
-bool CodecMad::init(const QAudioFormat& format)
+bool CodecMad::init()
 {
-    m_format = format;
-
-    qDebug() << "format:";
-    qDebug() << format.channelCount();
-    qDebug() << format.sampleRate();
-    qDebug() << format.sampleSize();
-    qDebug() << format.byteOrder();
+    m_format = QAudioFormat();
+    m_infoemitted = false;
+    decodeFunc = 0;
 
     mad_stream_init(&m_stream);
     mad_frame_init(&m_frame);
@@ -154,13 +150,24 @@ bool CodecMad::init(const QAudioFormat& format)
     if (!m_buffer)
         m_buffer = new unsigned char[INPUT_BUFFER_SIZE + MAD_BUFFER_GUARD];
 
+    return true;
+}
+
+void CodecMad::setAudioFormat(const QAudioFormat &format)
+{
+    m_format = format;
+
+    qDebug() << "format:";
+    qDebug() << format.channelCount();
+    qDebug() << format.sampleRate();
+    qDebug() << format.sampleSize();
+    qDebug() << format.byteOrder();
+
     // ### need to take m_format more into account here
     if (format.sampleSize() == 24)
         decodeFunc = &CodecMad::decode24;
     else
         decodeFunc = &CodecMad::decode16;
-
-    return true;
 }
 
 void CodecMad::deinit()
@@ -390,6 +397,9 @@ void CodecMad::feed(const QByteArray& data, bool end)
 
 CodecMad::Status CodecMad::decode()
 {
+    if (!decodeFunc && m_infoemitted)
+        return NeedInput;
+
     for (;;) {
         if (mad_header_decode(&m_frame.header, &m_stream)) {
             if (MAD_RECOVERABLE(m_stream.error)) {
@@ -417,7 +427,7 @@ CodecMad::Status CodecMad::decode()
                     continue;
                 }
                 // good stuff, but we need to return
-                qDebug() << "recoverable foo" << m_stream.error;
+                qDebug() << "recoverable foo" << m_stream.error << m_frame.header.samplerate;
                 return Ok;
             } else {
                 if (m_stream.error == MAD_ERROR_BUFLEN
@@ -431,11 +441,22 @@ CodecMad::Status CodecMad::decode()
                 }
             }
         } else {
-            if (!m_samplerate)
+            if (!m_samplerate) {
                 m_samplerate = m_frame.header.samplerate;
+
+                if (!m_infoemitted) {
+                    m_infoemitted = true;
+                    emit sampleSize(24);
+                    emit sampleRate(m_samplerate);
+                    qDebug() << "++ mad info emitted";
+                }
+            }
         }
         break;
     }
+
+    if (!decodeFunc)
+        return NeedInput;
 
     mad_timer_add(&m_timer, m_frame.header.duration);
 
