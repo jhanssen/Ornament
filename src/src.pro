@@ -20,6 +20,7 @@ RESOURCES = src.qrc
 # Input
 HEADERS += codecs/codecs.h \
     codecs/codec.h \
+    codecs/flac/codec_flac.h \
     codecs/mad/codec_mad.h \
     tag.h \
     codecdevice.h \
@@ -34,6 +35,7 @@ HEADERS += codecs/codecs.h \
 SOURCES += main.cpp \
     codecs/codecs.cpp \
     codecs/codec.cpp \
+    codecs/flac/codec_flac.cpp \
     codecs/mad/codec_mad.cpp \
     tag.cpp \
     codecdevice.cpp \
@@ -45,7 +47,7 @@ SOURCES += main.cpp \
     medialibrary.cpp \
     mediareader.cpp
 
-LIBS += -lmad -ltag -lsamplerate
+LIBS += -lmad -ltag -lsamplerate -lFLAC
 
 OTHER_FILES += \
     player.qml \

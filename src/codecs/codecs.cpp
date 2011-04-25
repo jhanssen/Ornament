@@ -18,6 +18,7 @@
 
 #include "codecs/codecs.h"
 #include "codecs/codec.h"
+#include "codecs/flac/codec_flac.h"
 #include "codecs/mad/codec_mad.h"
 #include <QMutexLocker>
 #include <QAudioFormat>
@@ -28,6 +29,7 @@ Codecs::Codecs(QObject* parent)
     : QObject(parent)
 {
     addCodec<CodecMad>();
+    addCodec<CodecFlac>();
     addAudioFileInformation<AudioFileInformationMad>();
 
     qRegisterMetaType<QAudioFormat>("QAudioFormat");

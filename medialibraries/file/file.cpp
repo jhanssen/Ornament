@@ -257,6 +257,8 @@ QByteArray MediaLibraryFile::mimeTypeForTrack(const QString &filename)
         QString ext = filename.mid(extpos);
         if (ext == QLatin1String(".mp3"))
             return QByteArray("audio/mp3");
+        else if (ext == QLatin1String(".flac"))
+            return QByteArray("audio/flac");
         else if (ext == QLatin1String(".jpg") || ext == QLatin1String(".jpeg"))
             return QByteArray("image/jpeg");
         else if (ext == QLatin1String(".png"))

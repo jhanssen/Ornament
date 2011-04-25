@@ -157,7 +157,7 @@ void CodecMad::setAudioFormat(const QAudioFormat &format)
 {
     m_format = format;
 
-    qDebug() << "format:";
+    qDebug() << "mad format:";
     qDebug() << format.channelCount();
     qDebug() << format.sampleRate();
     qDebug() << format.sampleSize();
