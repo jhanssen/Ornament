@@ -51,7 +51,7 @@ QAudioOutput* AudioDevice::output() const
     return m_output;
 }
 
-void AudioDevice::createOutput()
+void AudioDevice::createOutput(int samplerate, int samplesize)
 {
     delete m_output;
     m_output = 0;
@@ -62,7 +62,10 @@ void AudioDevice::createOutput()
     QList<QAudioDeviceInfo> devices = QAudioDeviceInfo::availableDevices(QAudio::AudioOutput);
     foreach(const QAudioDeviceInfo& dev, devices) {
         if (m_device == dev.deviceName()) {
-            m_output = new QAudioOutput(dev, dev.preferredFormat());
+            QAudioFormat fmt = dev.preferredFormat();
+            fmt.setSampleRate(samplerate);
+            fmt.setSampleSize(samplesize);
+            m_output = new QAudioOutput(dev, fmt);
             m_output->setBufferSize(16384 * 4);
             return;
         }

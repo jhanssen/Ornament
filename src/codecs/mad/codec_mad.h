@@ -46,8 +46,10 @@ public:
     Q_INVOKABLE CodecMad(QObject* parent = 0);
     ~CodecMad();
 
-    bool init(const QAudioFormat &format);
+    bool init();
     void deinit();
+
+    void setAudioFormat(const QAudioFormat& format);
 
 public slots:
     void feed(const QByteArray &data, bool end = false);
@@ -63,6 +65,7 @@ private:
     unsigned int m_samplerate;
     bool m_end;
     qint64 m_skipping;
+    bool m_infoemitted;
 
     struct mad_stream m_stream;
     struct mad_frame m_frame;

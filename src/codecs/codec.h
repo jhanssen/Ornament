@@ -48,12 +48,15 @@ public:
 
     Codec(QObject* parent = 0);
 
-    virtual bool init(const QAudioFormat& format) = 0;
+    virtual bool init() = 0;
     virtual void deinit() = 0;
+    virtual void setAudioFormat(const QAudioFormat& format) = 0;
 
 signals:
     void output(QByteArray* data);
     void position(int position);
+    void sampleSize(int size);
+    void sampleRate(int rate);
 
 public slots:
     virtual void feed(const QByteArray& data, bool end = false) = 0;

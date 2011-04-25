@@ -21,11 +21,13 @@
 
 #include <QIODevice>
 #include <QLinkedList>
+#include <QAudioFormat>
 #include "buffer.h"
 
 class MediaReader;
 class Codec;
 class CodecThread;
+class QEventLoop;
 
 class CodecDevice : public QIODevice
 {
@@ -45,6 +47,13 @@ public:
     void pauseReader();
     void resumeReader();
 
+    void decodeUntilInformationReceived();
+
+    int sampleSize() const;
+    int sampleRate() const;
+
+    void setAudioFormat(const QAudioFormat& format);
+
 protected:
     qint64 readData(char *data, qint64 maxlen);
     qint64 writeData(const char *data, qint64 len);
@@ -53,6 +62,8 @@ private slots:
     void codecOutput(QByteArray* output);
     void codecAtEnd();
     void codecError();
+    void codecSampleSize(int size);
+    void codecSampleRate(int rate);
     void disposeThread();
 
 private:
@@ -62,6 +73,11 @@ private:
     bool m_atend;
     CodecThread* m_thread;
     Buffer m_decoded;
+
+    QEventLoop* m_decodeloop;
+
+    int m_samplesize;
+    int m_samplerate;
 };
 
 #endif // CODECDEVICE_H
