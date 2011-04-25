@@ -155,9 +155,6 @@ inline bool CodecFlac::resample(FLAC__int32** left, FLAC__int32** right, unsigne
 
     delete[] rightfloat;
 
-    int outrealsize;
-    int err;
-
     SRC_DATA srcdata;
     srcdata.end_of_input = (insize == 0);
     srcdata.input_frames = insize;
@@ -165,10 +162,10 @@ inline bool CodecFlac::resample(FLAC__int32** left, FLAC__int32** right, unsigne
     srcdata.data_in = combinedin;
     srcdata.data_out = leftfloat;
     srcdata.src_ratio = ratio;
-    err = src_process(m_sampleState, &srcdata);
+    const int err = src_process(m_sampleState, &srcdata);
     if (err)
         qDebug() << "error when resampling left" << err << src_strerror(err);
-    outrealsize = srcdata.output_frames_gen;
+    const long int outrealsize = srcdata.output_frames_gen;
     Q_ASSERT(srcdata.input_frames_used == insize);
 
     delete[] combinedin;
@@ -181,12 +178,12 @@ inline bool CodecFlac::resample(FLAC__int32** left, FLAC__int32** right, unsigne
     FLAC__int32* newleft = new FLAC__int32[outrealsize];
     FLAC__int32* newright = new FLAC__int32[outrealsize];
 
-    for (int i = 0, j = 0; i < outrealsize; ++i, j += 2) {
+    for (long int i = 0, j = 0; i < outrealsize; ++i, j += 2) {
         newleft[i] = combinedout[j];
         newright[i] = combinedout[j + 1];
     }
 
-    delete combinedout;
+    delete[] combinedout;
 
     *left = newleft;
     *right = newright;
