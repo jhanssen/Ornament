@@ -448,7 +448,6 @@ CodecMad::Status CodecMad::decode()
                     m_infoemitted = true;
                     emit sampleSize(24);
                     emit sampleRate(m_samplerate);
-                    qDebug() << "++ mad info emitted";
                 }
             }
         }

@@ -323,14 +323,10 @@ void CodecDevice::decodeUntilInformationReceived()
     if (m_samplerate && m_samplesize)
         return;
 
-    qDebug() << "++ decodeuntil" << m_samplerate << m_samplesize;
-
     QEventLoop loop;
     m_decodeloop = &loop;
     loop.exec();
     m_decodeloop = 0;
-
-    qDebug() << "++ decodeuntil end";
 }
 
 void CodecDevice::codecAtEnd()
@@ -347,8 +343,6 @@ void CodecDevice::codecError()
 
 void CodecDevice::codecSampleRate(int rate)
 {
-    qDebug() << "++ codec rate";
-
     m_samplerate = rate;
     if (m_samplerate && m_samplesize && m_decodeloop)
         m_decodeloop->quit();
@@ -356,8 +350,6 @@ void CodecDevice::codecSampleRate(int rate)
 
 void CodecDevice::codecSampleSize(int size)
 {
-    qDebug() << "++ codec size";
-
     m_samplesize = size;
     if (m_samplerate && m_samplesize && m_decodeloop)
         m_decodeloop->quit();
