@@ -21,6 +21,7 @@
 #include "codecs/codec.h"
 #include <QApplication>
 #include <QThread>
+#include <QEventLoop>
 #include <QDebug>
 
 #define CODEC_BUFFER_MIN (16384 * 4)
@@ -43,6 +44,8 @@ public:
     void pause();
     void resume();
 
+    void setAudioFormat(const QAudioFormat& format);
+
 signals:
     void data(QByteArray* b);
     void atEnd();
@@ -62,6 +65,7 @@ private:
     Q_INVOKABLE void init();
     Q_INVOKABLE void pauseReader();
     Q_INVOKABLE void resumeReader();
+    Q_INVOKABLE void setCodecFormat(const QAudioFormat& format);
 
 private:
     int m_total;
@@ -81,6 +85,11 @@ CodecThread::~CodecThread()
 {
     delete m_reader;
     delete m_codec;
+}
+
+void CodecThread::setAudioFormat(const QAudioFormat &format)
+{
+    QMetaObject::invokeMethod(this, "setCodecFormat", Q_ARG(QAudioFormat, format));
 }
 
 void CodecThread::setMediaReader(MediaReader *reader)
@@ -136,6 +145,12 @@ void CodecThread::resumeReader()
 void CodecThread::stopThread()
 {
     quit();
+}
+
+void CodecThread::setCodecFormat(const QAudioFormat &format)
+{
+    if (m_codec)
+        m_codec->setAudioFormat(format);
 }
 
 void CodecThread::consumedData(int size)
@@ -214,7 +229,7 @@ void CodecThread::run()
 #include "codecdevice.moc"
 
 CodecDevice::CodecDevice(QObject *parent)
-    : QIODevice(parent), m_atend(false), m_thread(new CodecThread)
+    : QIODevice(parent), m_atend(false), m_thread(new CodecThread), m_decodeloop(0), m_samplesize(0), m_samplerate(0)
 {
     connect(m_thread, SIGNAL(finished()), this, SLOT(disposeThread()));
     connect(m_thread, SIGNAL(data(QByteArray*)), this, SLOT(codecOutput(QByteArray*)));
@@ -251,6 +266,8 @@ void CodecDevice::setInputReader(MediaReader *input)
 void CodecDevice::setCodec(Codec *codec)
 {
     m_thread->setCodec(codec);
+    connect(codec, SIGNAL(sampleRate(int)), this, SLOT(codecSampleRate(int)));
+    connect(codec, SIGNAL(sampleSize(int)), this, SLOT(codecSampleSize(int)));
 }
 
 bool CodecDevice::open(OpenMode mode)
@@ -259,6 +276,7 @@ bool CodecDevice::open(OpenMode mode)
     if (!ok)
         return false;
 
+    m_samplerate = m_samplesize = 0;
     m_atend = false;
     return true;
 }
@@ -300,6 +318,21 @@ qint64 CodecDevice::writeData(const char *data, qint64 len)
     return -1;
 }
 
+void CodecDevice::decodeUntilInformationReceived()
+{
+    if (m_samplerate && m_samplesize)
+        return;
+
+    qDebug() << "++ decodeuntil" << m_samplerate << m_samplesize;
+
+    QEventLoop loop;
+    m_decodeloop = &loop;
+    loop.exec();
+    m_decodeloop = 0;
+
+    qDebug() << "++ decodeuntil end";
+}
+
 void CodecDevice::codecAtEnd()
 {
     m_atend = true;
@@ -310,6 +343,24 @@ void CodecDevice::codecError()
     qDebug() << "codec error";
     m_decoded.clear();
     close();
+}
+
+void CodecDevice::codecSampleRate(int rate)
+{
+    qDebug() << "++ codec rate";
+
+    m_samplerate = rate;
+    if (m_samplerate && m_samplesize && m_decodeloop)
+        m_decodeloop->quit();
+}
+
+void CodecDevice::codecSampleSize(int size)
+{
+    qDebug() << "++ codec size";
+
+    m_samplesize = size;
+    if (m_samplerate && m_samplesize && m_decodeloop)
+        m_decodeloop->quit();
 }
 
 void CodecDevice::codecOutput(QByteArray* output)
@@ -325,4 +376,19 @@ void CodecDevice::pauseReader()
 void CodecDevice::resumeReader()
 {
     m_thread->resume();
+}
+
+void CodecDevice::setAudioFormat(const QAudioFormat &format)
+{
+    m_thread->setAudioFormat(format);
+}
+
+int CodecDevice::sampleRate() const
+{
+    return m_samplerate;
+}
+
+int CodecDevice::sampleSize() const
+{
+    return m_samplesize;
 }
