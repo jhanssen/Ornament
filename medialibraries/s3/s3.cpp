@@ -170,7 +170,8 @@ QByteArray MediaReaderS3::readData(qint64 length)
     if (!m_priv->m_reply)
         return QByteArray();
 
-    return m_priv->m_reply->read(length);
+    qint64 toread = qMin(length, m_priv->m_reply->bytesAvailable());
+    return m_priv->m_reply->read(toread);
 }
 
 void MediaReaderS3::pause()

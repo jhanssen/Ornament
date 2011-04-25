@@ -60,7 +60,6 @@ private slots:
 
     void readerData(QByteArray* data);
     void readerAtEnd();
-    void readerStarving();
 
 private:
     void dataCallback();

@@ -300,6 +300,7 @@ void CodecMad::resample(mad_fixed_t **pcmleft, mad_fixed_t **pcmright, int *pcml
     int insize = *pcmlen;
 
     double ratio = static_cast<double>(m_format.sampleRate()) / static_cast<double>(m_samplerate);
+    qDebug() << "resampling. format:" << m_format.sampleRate() << "mp3 data:" << m_samplerate;
     int outsize = static_cast<int>(static_cast<double>(insize) * ratio) + 1;
 
     float* infloat = new float[insize * 2];

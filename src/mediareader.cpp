@@ -21,8 +21,9 @@
 #include "buffer.h"
 #include <QDebug>
 
+#define READ_SEGMENT 8192
 #define MIN_BUFFER_SIZE (8192 * 10)
-#define READ_SIZE (8192 * 50)
+#define MAX_BUFFER_SIZE (8192 * 50)
 
 class MediaReaderJob : public IOJob
 {
@@ -33,24 +34,21 @@ public:
 
     void setFilename(const QString& m_filename);
 
-    void readMore();
+    void notifyConsumed(int consumed);
     void start();
 
     void pause();
     void resume();
 
-    void dataSignaled();
-
 signals:
     void data(QByteArray* data);
     void atEnd();
-    void starving();
 
 private:
     enum State { Reading, Paused } m_state;
 
     Q_INVOKABLE void startJob();
-    Q_INVOKABLE void readMoreData();
+    Q_INVOKABLE void dataConsumed(int consumed);
     Q_INVOKABLE void setState(int state); // ### Should really use State here
 
 private:
@@ -60,14 +58,14 @@ private:
 private:
     MediaReaderInterface* m_iface;
     QString m_filename;
-    int m_toread;
+    int m_total;
     qint64 m_position;
 };
 
 #include "mediareader.moc"
 
 MediaReaderJob::MediaReaderJob(MediaReaderInterface* iface, QObject *parent)
-    : IOJob(parent), m_state(Reading), m_iface(iface), m_toread(0), m_position(0)
+    : IOJob(parent), m_state(Reading), m_iface(iface), m_total(0), m_position(0)
 {
     iface->setTargetThread(IO::instance());
 }
@@ -115,15 +113,25 @@ void MediaReaderJob::setState(int state)
         m_iface->pause();
         break;
     case Reading:
-        m_toread = 0;
+        m_total = 0;
         m_iface->resume(m_position);
+        readData();
         break;
     }
 }
 
-void MediaReaderJob::readMore()
+void MediaReaderJob::notifyConsumed(int consumed)
 {
-    QMetaObject::invokeMethod(this, "readMoreData");
+    if (QThread::currentThread() == IO::instance())
+        dataConsumed(consumed);
+    else
+        QMetaObject::invokeMethod(this, "dataConsumed", Q_ARG(int, consumed));
+}
+
+void MediaReaderJob::dataConsumed(int consumed)
+{
+    m_total -= consumed;
+    readData();
 }
 
 void MediaReaderJob::startJob()
@@ -133,61 +141,49 @@ void MediaReaderJob::startJob()
     m_iface->open();
 }
 
-void MediaReaderJob::dataSignaled()
-{
-    if (m_toread == 0) {
-        emit starving();
-        return;
-    }
-
-    readData();
-}
-
 void MediaReaderJob::readData()
 {
     if (!m_iface)
         return;
 
-    QByteArray* d = new QByteArray(m_iface->readData(m_toread));
-    if (d->isEmpty()) {
-        if (m_iface->atEnd()) {
-            delete m_iface;
-            m_iface = 0;
+    if (m_total > MIN_BUFFER_SIZE)
+        return;
 
-            emit atEnd();
-            stop();
+    int sz;
+    do {
+        QByteArray* d = new QByteArray(m_iface->readData(READ_SEGMENT));
+        if (d->isEmpty()) {
+            if (m_iface->atEnd()) {
+                delete m_iface;
+                m_iface = 0;
+
+                emit atEnd();
+                stop();
+            }
+
+            delete d;
+            break;
         }
 
-        delete d;
-        return;
-    }
+        //qDebug() << "reader read" << d->size() << "bytes";
 
-    //qDebug() << "reader read" << d->size() << "bytes";
+        sz = d->size();
+        m_total += sz;
+        emit data(d);
 
-    const int sz = d->size();
-    m_toread -= sz;
-    emit data(d);
+        m_position += sz;
 
-    m_position += sz;
+        if (m_iface->atEnd()) {
+            qDebug() << "reader finished";
 
-    if (m_iface->atEnd()) {
-        qDebug() << "reader finished";
-
-        emit atEnd();
-    }
-}
-
-void MediaReaderJob::readMoreData()
-{
-    if (m_state == Paused)
-        return;
-
-    m_toread += READ_SIZE;
-    readData();
+            emit atEnd();
+            break;
+        }
+    } while (sz == READ_SEGMENT && m_total < MAX_BUFFER_SIZE);
 }
 
 MediaReader::MediaReader(MediaReaderInterface* iface, QObject *parent)
-    : QIODevice(parent), m_reader(0), m_iface(iface), m_atend(false), m_requestedData(false)
+    : QIODevice(parent), m_reader(0), m_iface(iface), m_atend(false)
 {
     connect(IO::instance(), SIGNAL(error(QString)), this, SLOT(ioError(QString)));
 }
@@ -204,11 +200,8 @@ void MediaReader::pause()
 
 void MediaReader::resume()
 {
-    if (m_reader) {
+    if (m_reader)
         m_reader->resume();
-        m_reader->readMore();
-        m_requestedData = true;
-    }
 }
 
 void MediaReader::setFilename(const QString &filename)
@@ -272,17 +265,14 @@ qint64 MediaReader::readData(char *data, qint64 maxlen)
     }
 
     QByteArray dt = m_buffer.read(maxlen);
+    const int dtsize = dt.size();
+    if (dtsize)
+        memcpy(data, dt.constData(), dtsize);
 
-    if (!dt.isEmpty())
-        memcpy(data, dt.constData(), dt.size());
+    if (m_reader)
+        m_reader->notifyConsumed(dtsize);
 
-    if (!m_requestedData && m_buffer.size() < MIN_BUFFER_SIZE && m_reader) {
-        qDebug() << "reader buffer low, requesting more";
-        m_reader->readMore();
-        m_requestedData = true;
-    }
-
-    return dt.size();
+    return dtsize;
 }
 
 qint64 MediaReader::writeData(const char *data, qint64 len)
@@ -297,7 +287,6 @@ void MediaReader::jobStarted()
 {
     connect(m_reader, SIGNAL(data(QByteArray*)), this, SLOT(readerData(QByteArray*)));
     connect(m_reader, SIGNAL(atEnd()), this, SLOT(readerAtEnd()));
-    connect(m_reader, SIGNAL(starving()), this, SLOT(readerStarving()));
 
     m_reader->start();
 }
@@ -311,15 +300,6 @@ void MediaReader::jobFinished()
         m_reader = 0;
 }
 
-void MediaReader::readerStarving()
-{
-    if (m_buffer.size() < MIN_BUFFER_SIZE && m_reader) {
-        qDebug() << "reader job starvation, requesting more";
-        m_reader->readMore();
-        m_requestedData = true;
-    }
-}
-
 void MediaReader::readerData(QByteArray *data)
 {
     QObject* from = sender();
@@ -330,9 +310,6 @@ void MediaReader::readerData(QByteArray *data)
 
     m_buffer.add(data);
     emit readyRead();
-
-    if (m_requestedData && (m_buffer.size() * 2) > MIN_BUFFER_SIZE)
-        m_requestedData = false;
 }
 
 void MediaReader::readerAtEnd()
@@ -351,7 +328,6 @@ void MediaReader::ioError(const QString &message)
 
 void MediaReader::dataCallback()
 {
-    Q_ASSERT(QThread::currentThread() == IO::instance());
-
-    m_reader->dataSignaled();
+    if (m_reader)
+        m_reader->notifyConsumed(0);
 }
