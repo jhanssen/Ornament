@@ -62,6 +62,7 @@ private:
     QAudioFormat m_format;
     unsigned int m_samplerate;
     bool m_end;
+    qint64 m_skipping;
 
     struct mad_stream m_stream;
     struct mad_frame m_frame;

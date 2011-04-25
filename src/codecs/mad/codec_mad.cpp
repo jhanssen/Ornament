@@ -120,7 +120,7 @@ int AudioFileInformationMad::length() const
 }
 
 CodecMad::CodecMad(QObject *parent)
-    : Codec(parent), m_samplerate(0), m_end(false), m_buffer(0), m_sampleState(0)
+    : Codec(parent), m_samplerate(0), m_end(false), m_skipping(0), m_buffer(0), m_sampleState(0)
 {
 }
 
@@ -143,6 +143,8 @@ bool CodecMad::init(const QAudioFormat& format)
     mad_frame_init(&m_frame);
     mad_synth_init(&m_synth);
     mad_timer_reset(&m_timer);
+
+    m_skipping = 0;
 
     int err;
     m_sampleState = src_new(SRC_SINC_MEDIUM_QUALITY, 2, &err);
@@ -346,9 +348,18 @@ void CodecMad::feed(const QByteArray& data, bool end)
     static int totalpushed = 0;
     totalpushed += data.size();
     //qDebug() << "total pushed" << totalpushed;
+    if (m_skipping) {
+        qint64 rem = data.size() - m_skipping;
+        m_skipping = qMax(m_skipping - data.size(), static_cast<qint64>(0));
+        if (m_skipping)
+            return;
 
-    //qDebug() << "had" << m_data.size() << "bytes already before pushing" << data.size();
-    m_data += data;
+        if (m_stream.next_frame != NULL)
+            m_stream.next_frame = NULL;
+
+        m_data += data.mid(rem);
+    } else
+        m_data += data;
 
     size_t rem = 0, copylen;
 
@@ -390,7 +401,14 @@ CodecMad::Status CodecMad::decode()
                             header.setData(TagLib::ByteVector(reinterpret_cast<const char*>(m_stream.this_frame), size));
                             uint tagsize = header.completeTagSize();
                             if (tagsize > 0) {
-                                mad_stream_skip(&m_stream, tagsize);
+                                mad_stream_skip(&m_stream, size);
+                                m_skipping = qMax(tagsize - size, static_cast<unsigned int>(0));
+                                if (!m_data.isEmpty()) {
+                                    if (m_skipping >= m_data.size())
+                                        m_data.clear();
+                                    else
+                                        m_data = m_data.mid(m_skipping);
+                                }
                                 return Ok;
                             }
                         }
