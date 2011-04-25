@@ -99,6 +99,9 @@ void MediaReaderJob::resume()
 
 void MediaReaderJob::setState(int state)
 {
+    if (!m_iface)
+        return;
+
     State oldstate = m_state;
     m_state = static_cast<State>(state);
 
@@ -125,6 +128,8 @@ void MediaReaderJob::readMore()
 
 void MediaReaderJob::startJob()
 {
+    if (!m_iface)
+        return;
     m_iface->open();
 }
 
@@ -140,6 +145,9 @@ void MediaReaderJob::dataSignaled()
 
 void MediaReaderJob::readData()
 {
+    if (!m_iface)
+        return;
+
     QByteArray* d = new QByteArray(m_iface->readData(m_toread));
     if (d->isEmpty()) {
         if (m_iface->atEnd()) {
