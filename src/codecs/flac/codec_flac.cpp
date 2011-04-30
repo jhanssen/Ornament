@@ -339,8 +339,10 @@ inline static bool recoverable(FLAC__StreamDecoderState state)
 
 CodecFlac::Status CodecFlac::decode()
 {
-    if (static_cast<unsigned int>(m_data.size()) >= (m_maxframesize ? m_maxframesize : FLAC_MIN_BUFFER_SIZE) || m_end) {
+    if (static_cast<unsigned int>(m_data.size()) >= (m_maxframesize ? m_maxframesize : FLAC_MIN_BUFFER_SIZE)
+        || (m_end && !m_data.isEmpty())) {
         const qint64 sz = m_data.size();
+
         if (!FLAC__stream_decoder_process_single(m_decoder)) {
             if (!recoverable(FLAC__stream_decoder_get_state(m_decoder)))
                 return Error;
@@ -354,8 +356,9 @@ CodecFlac::Status CodecFlac::decode()
                 }
             }
         }
-        if (sz && sz == m_data.size())
+        if (sz == m_data.size())
             return NeedInput;
+
         return Ok;
     }
     return NeedInput;
