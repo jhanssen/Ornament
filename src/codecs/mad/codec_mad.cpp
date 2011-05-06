@@ -378,7 +378,7 @@ void CodecMad::feed(const QByteArray& data, bool end)
 
         //qDebug() << "rem?" << rem;
 
-        copylen = qMin(INPUT_BUFFER_SIZE - rem, static_cast<long unsigned int>(m_data.size()));
+        copylen = qMin(INPUT_BUFFER_SIZE - rem, static_cast<size_t>(m_data.size()));
         memcpy(m_buffer + rem, m_data.constData(), copylen);
         m_data = m_data.mid(copylen);
 
